@@ -62,3 +62,61 @@ Per tant el llibre de comptabilitat amb 3 transaccions tindra aquest format:
   }
 ]
 ```
+
+### Comunicació
+
+La comunicació mirarem de fer-la a través de una API sobre HTTP.
+
+#### POST /version
+Un node informa que es vol connectar.
+```json
+{
+  "node_id": "A",
+  "timestamp": "2025-04-14T17:00:00Z"
+  "known_height": 3
+}
+```
+#### POST /verack
+Resposta al version. Simplement acceptem la connexió
+
+#### GET /addr
+Demanar les adreces d'altres nodes
+
+#### POST /addr
+Reposta amb la llista d'adreces conegudes:
+```json
+{
+  "nodes": ["http://localhost:5001", "http://localhost:5002"]
+}
+```
+
+#### POST /inventory
+Té una nova transacció
+
+```json
+{
+  "indexes": [3, 4, 5]
+}
+```
+
+#### POST /getdata
+El node demana les dades reals corresponents a un inventory.
+```json
+{
+  "indexes": [3, 4, 5]
+}
+```
+
+#### POST /transactions
+Resposta amb la transacció sencera
+```json
+[
+  {
+    "index": 3,
+    "timestamp": "2025-04-14T10:10:00Z",
+    "sender": "A",
+    "receiver": "C",
+    "amount": 3
+  }
+]
+```
