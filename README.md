@@ -108,7 +108,7 @@ El node demana les dades reals corresponents a un inventory.
 ```
 
 #### POST /transactions
-Resposta amb la transacció sencera
+Resposta amb la transaccins
 ```json
 [
   {
