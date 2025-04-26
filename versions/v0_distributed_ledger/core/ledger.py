@@ -13,6 +13,16 @@ def load_balances():
         except json.JSONDecodeError:
             return {}
 
+def load_ledger():
+    if not os.path.exists(LEDGER_FILE):
+        return []
+    with open(LEDGER_FILE, "r") as f:
+        try:
+            return json.load(f)
+        except json.JSONDecodeError:
+            return []
+
+
 def save_balances(balances):
     with open(UTXO_FILE, "w") as f:
         json.dump(balances, f, indent=2)
@@ -59,15 +69,13 @@ def process_transactions(tx_list):
             break
 
 def get_last_transaction_index():
-    if not os.path.exists(LEDGER_FILE):
+    transactions = load_ledger()
+    if not transactions:
         return 0
+    last_index = max(tx["index"] for tx in transactions)
+    return last_index
 
-    with open(LEDGER_FILE, "r") as f:
-        try:
-            transactions = json.load(f)
-            if not transactions:
-                return 0
-            last_index = max(tx["index"] for tx in transactions)
-            return last_index
-        except json.JSONDecodeError:
-            return 0
+def get_transactions_by_indexes(indexes):
+    transactions = load_ledger()  # Funció que carrega ledger.json
+    found = [tx for tx in transactions if tx["index"] in indexes]
+    return found

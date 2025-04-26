@@ -103,7 +103,8 @@ Té una nova transacció
 El node demana les dades reals corresponents a un inventory.
 ```json
 {
-  "indexes": [3, 4, 5]
+  "indexes": [3, 4, 5],
+  "node_address": "http://localhost:5001"
 }
 ```
 
