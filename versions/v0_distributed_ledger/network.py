@@ -4,6 +4,8 @@ from core import ledger
 
 app = Flask(__name__)
 
+MY_NODE_ADDRESS = "http://localhost:5000"
+
 @app.route('/version', methods=['POST'])
 def version():
     data = request.get_json()
@@ -31,7 +33,31 @@ def post_addr():
 def inventory():
     data = request.get_json()
     print(f"Rebut /inventory: {data}")
-    return jsonify({"message": "inventory received"}), 200
+
+    indexes_other_node  = data.get("indexes", [])
+    node_address = data.get("node_address")
+
+    if not indexes_other_node or not node_address:
+        return jsonify({"error": "No indexes or node_address provided"}), 400
+    
+    missing_indexes = ledger.get_missing_transactions(indexes_other_node)
+
+    if missing_indexes:
+        payload = {
+            "indexes": missing_indexes,
+            "node_address": MY_NODE_ADDRESS
+        }
+        try:
+            response = requests.post(f"{node_address}/getdata", json=payload)
+            if response.status_code == 200:
+                return jsonify({"message": "Requested missing transactions"}), 200
+            else:
+                return jsonify({"error": "Failed to request missing transactions"}), 500
+        except requests.exceptions.RequestException as e:
+            print(f"Error demanant transaccions: {e}")
+            return jsonify({"error": "Connection error"}), 500
+    else:
+        return jsonify({"message": "No missing transactions"}), 200
 
 @app.route('/getdata', methods=['POST'])
 def getdata():

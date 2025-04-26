@@ -91,11 +91,12 @@ Reposta amb la llista d'adreces conegudes:
 ```
 
 #### POST /inventory
-Té una nova transacció
+Té noves transacció
 
 ```json
 {
-  "indexes": [3, 4, 5]
+  "indexes": [3, 4, 5],
+  "node_address": "http://localhost:5001"
 }
 ```
 

@@ -79,3 +79,13 @@ def get_transactions_by_indexes(indexes):
     transactions = load_ledger()  # Funció que carrega ledger.json
     found = [tx for tx in transactions if tx["index"] in indexes]
     return found
+
+def get_missing_transactions(indexes_other_node):
+    last_index = get_last_transaction_index()
+    last_index_other = max(indexes_other_node) if indexes_other_node else 0
+    if last_index==0 and last_index_other!=0:
+        return [1..last_index_other]
+    elif last_index_other>last_index:
+        return [last_index+1..last_index_other]
+    else:
+        return []
