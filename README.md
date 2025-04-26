@@ -72,15 +72,28 @@ Un node informa que es vol connectar.
 ```json
 {
   "node_id": "A",
-  "timestamp": "2025-04-14T17:00:00Z"
-  "known_height": 3
+  "timestamp": "2025-04-14T17:00:00Z",
+  "known_height": 3,
+  "node_address": "http://localhost:5001"
 }
 ```
 #### POST /verack
 Resposta al version. Simplement acceptem la connexió
+```json
+{
+  "node_id": "A",
+  "node_address": "http://localhost:5001"
+}
+```
 
 #### GET /addr
 Demanar les adreces d'altres nodes
+```json
+{
+  "node_id": "A",
+  "node_address": "http://localhost:5001"
+}
+```
 
 #### POST /addr
 Reposta amb la llista d'adreces conegudes:
@@ -96,7 +109,8 @@ Té noves transacció
 ```json
 {
   "indexes": [3, 4, 5],
-  "node_address": "http://localhost:5001"
+  "node_address": "http://localhost:5001",
+  "node_id": "A",
 }
 ```
 
@@ -105,7 +119,8 @@ El node demana les dades reals corresponents a un inventory.
 ```json
 {
   "indexes": [3, 4, 5],
-  "node_address": "http://localhost:5001"
+  "node_address": "http://localhost:5001",
+  "node_id": "A",
 }
 ```
 

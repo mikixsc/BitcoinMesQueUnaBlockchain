@@ -1,32 +1,82 @@
 from flask import Flask, request, jsonify
 import requests
 from core import ledger
+from datetime import datetime
 
 app = Flask(__name__)
 
 MY_NODE_ADDRESS = "http://localhost:5000"
+MY_ID = "A"  # Identificador del node
+
+known_nodes = [
+    "http://localhost:5001",
+    "http://localhost:5002"
+]
 
 @app.route('/version', methods=['POST'])
 def version():
     data = request.get_json()
     print(f"Rebut /version: {data}")
+    sender_address = data.get("node_address")
+    if sender_address:
+        try:
+            print(f"Enviant /verack a {sender_address}")
+            requests.post(f"{sender_address}/verack")
+        except Exception as e:
+            print(f"Error enviant /verack: {e}")
+    
     return jsonify({"message": "version received"}), 200
+
 
 @app.route('/verack', methods=['POST'])
 def verack():
     print(f"Rebut /verack")
+    data = request.get_json()
+    sender_address = data.get("node_address")
+
+    if sender_address not in known_nodes:
+        known_nodes.append(sender_address)
+        print(f"Node afegit: {sender_address}")
+
     return jsonify({"message": "verack received"}), 200
 
-@app.route('/addr', methods=['GET'])
+# Demanar les adreces d'altres nodes
+@app.route('/getaddr', methods=['POST'])
 def get_addr():
-    # De moment tornem una resposta dummy
-    nodes = ["http://localhost:5001", "http://localhost:5002"]
-    return jsonify({"nodes": nodes}), 200
+    print(f"Rebut /getaddr")
+    data = request.get_json()
+    sender_address = data.get("node_address")
 
+    if sender_address:
+        try:
+            payload = {"nodes": known_nodes}
+            print(f"Enviant /addr a {sender_address}")
+            requests.post(f"{sender_address}/addr", json=payload)
+        except Exception as e:
+            print(f"Error enviant /addr: {e}")
+    
+    return jsonify({"message": "getaddr received"}), 200
+
+# Reposta amb la llista d'adreces conegudes:
 @app.route('/addr', methods=['POST'])
 def post_addr():
     data = request.get_json()
-    print(f"Rebut /addr: {data}")
+    new_nodes = data.get("nodes", [])
+    
+    # Afegir només nodes nous que no teníem
+    for node in new_nodes:
+        if node not in known_nodes:
+            try:
+                payload = {
+                    "node_id": MY_ID,
+                    "node_address": MY_NODE_ADDRESS,
+                    "timestamp": datetime.utcnow().isoformat(),
+                    "known_height": ledger.get_last_transaction_index()
+                }
+                requests.post(f"{node}/version", json=payload)
+            except Exception as e:
+                print(f"Error enviant /version a {node}: {e}")
+    
     return jsonify({"message": "addr received"}), 200
 
 @app.route('/inventory', methods=['POST'])
