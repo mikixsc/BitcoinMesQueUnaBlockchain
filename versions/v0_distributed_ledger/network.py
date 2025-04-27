@@ -1,72 +1,122 @@
 from flask import Flask, request, jsonify
 import requests
+import logging
 from core import ledger
 from datetime import datetime
 import os
 
+# Configuració del logger
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] (%(name)s) %(message)s",
+)
+logger = logging.getLogger(__name__)
+
 app = Flask(__name__)
 
 PORT = int(os.getenv("PORT", 5000))
-
 MY_NODE_ADDRESS = "http://" + os.getenv("MY_HOSTNAME", "localhost") + ":" + str(PORT)
 MY_ID = os.getenv("MY_ID", "A")  # Identificador del node
 
 known_nodes = []
 
+@app.route('/ledger', methods=['GET'])
+def get_ledger():
+    try:
+        current_ledger = ledger.load_ledger()
+        logger.info(f"[{MY_ID}] Ledger demanat, {len(current_ledger)} transaccions retornades.")
+        return jsonify(current_ledger), 200
+    except Exception as e:
+        logger.error(f"[{MY_ID}] Error carregant el ledger: {e}")
+        return jsonify({"error": "No s'ha pogut carregar el ledger."}), 500
+
+@app.route('/create_transaction', methods=['POST'])
+def create_transaction():
+    data = request.get_json()
+
+    tx = {
+        "index": ledger.get_last_transaction_index() + 1,
+        "timestamp": datetime.utcnow().isoformat() + "Z",
+        "sender": data.get("sender"),
+        "receiver": data.get("receiver"),
+        "amount": data.get("amount")
+    }
+    
+    if ledger.process_transaction(tx):
+        # Transacció vàlida -> anunciem-la
+        payload = {
+            "indexes": [ledger.get_last_transaction_index()],
+            "node_address": MY_NODE_ADDRESS,
+            "node_id": MY_ID,
+        }
+        for node_address in known_nodes:
+            try:
+                requests.post(f"{node_address}/inventory", json=payload)
+                logger.info(f"[{MY_ID}] Inventory enviat a {node_address}")
+            except Exception as e:
+                logger.error(f"[{MY_ID}] Error enviant inventory a {node_address}: {e}")
+
+        return jsonify({"message": "Transaction created and announced"}), 201
+    else:
+        return jsonify({"error": "Transaction failed: insufficient balance"}), 400
+
+
+
+
+
+
 @app.route('/version', methods=['POST'])
 def version():
     data = request.get_json()
-    print(f"Rebut /version: {data}")
+    logger.info(f"[{MY_ID}] Rebut /version: {data}")
     sender_address = data.get("node_address")
+    
     if sender_address:
         try:
             if sender_address not in known_nodes:
                 known_nodes.append(sender_address)
-                print(f"Node afegit: {sender_address}")
-            print(f"Enviant /verack a {sender_address}")
+                logger.info(f"[{MY_ID}] Node afegit a known_nodes: {sender_address}")
+            logger.info(f"[{MY_ID}] Enviant /verack a {sender_address}")
             requests.post(f"{sender_address}/verack")
         except Exception as e:
-            print(f"Error enviant /verack: {e}")
+            logger.error(f"[{MY_ID}] Error enviant /verack: {e}")
     
     return jsonify({"message": "version received"}), 200
 
-
 @app.route('/verack', methods=['POST'])
 def verack():
-    print(f"Rebut /verack")
+    logger.info(f"[{MY_ID}] Rebut /verack")
     data = request.get_json()
     sender_address = data.get("node_address")
 
-    if sender_address not in known_nodes:
+    if sender_address and sender_address not in known_nodes:
         known_nodes.append(sender_address)
-        print(f"Node afegit: {sender_address}")
+        logger.info(f"[{MY_ID}] Node afegit a known_nodes: {sender_address}")
 
     return jsonify({"message": "verack received"}), 200
 
-# Demanar les adreces d'altres nodes
 @app.route('/getaddr', methods=['POST'])
 def get_addr():
-    print(f"Rebut /getaddr")
+    logger.info(f"[{MY_ID}] Rebut /getaddr")
     data = request.get_json()
     sender_address = data.get("node_address")
 
     if sender_address:
         try:
             payload = {"nodes": known_nodes}
-            print(f"Enviant /addr a {sender_address}")
+            logger.info(f"[{MY_ID}] Enviant /addr a {sender_address} amb nodes: {known_nodes}")
             requests.post(f"{sender_address}/addr", json=payload)
         except Exception as e:
-            print(f"Error enviant /addr: {e}")
+            logger.error(f"[{MY_ID}] Error enviant /addr: {e}")
     
     return jsonify({"message": "getaddr received"}), 200
 
-# Reposta amb la llista d'adreces conegudes:
 @app.route('/addr', methods=['POST'])
 def post_addr():
     data = request.get_json()
     new_nodes = data.get("nodes", [])
+    logger.info(f"[{MY_ID}] Rebut /addr amb nous nodes: {new_nodes}")
     
-    # Afegir només nodes nous que no teníem
     for node in new_nodes:
         if node not in known_nodes:
             try:
@@ -76,24 +126,26 @@ def post_addr():
                     "timestamp": datetime.utcnow().isoformat(),
                     "known_height": ledger.get_last_transaction_index()
                 }
+                logger.info(f"[{MY_ID}] Enviant /version a nou node {node}")
                 requests.post(f"{node}/version", json=payload)
             except Exception as e:
-                print(f"Error enviant /version a {node}: {e}")
+                logger.error(f"[{MY_ID}] Error enviant /version a {node}: {e}")
     
     return jsonify({"message": "addr received"}), 200
 
 @app.route('/inventory', methods=['POST'])
 def inventory():
     data = request.get_json()
-    print(f"Rebut /inventory: {data}")
+    logger.info(f"[{MY_ID}] Rebut /inventory: {data}")
 
-    indexes_other_node  = data.get("indexes", [])
+    indexes_other_node = data.get("indexes", [])
     node_address = data.get("node_address")
 
     if not indexes_other_node or not node_address:
         return jsonify({"error": "No indexes or node_address provided"}), 400
     
     missing_indexes = ledger.get_missing_transactions(indexes_other_node)
+    logger.info(f"[{MY_ID}] Missing transactions: {missing_indexes}")
 
     if missing_indexes:
         payload = {
@@ -107,7 +159,7 @@ def inventory():
             else:
                 return jsonify({"error": "Failed to request missing transactions"}), 500
         except requests.exceptions.RequestException as e:
-            print(f"Error demanant transaccions: {e}")
+            logger.error(f"[{MY_ID}] Error demanant transaccions: {e}")
             return jsonify({"error": "Connection error"}), 500
     else:
         return jsonify({"message": "No missing transactions"}), 200
@@ -115,15 +167,16 @@ def inventory():
 @app.route('/getdata', methods=['POST'])
 def getdata():
     data = request.get_json()
-    print(f"Rebut /getdata: {data}")
+    logger.info(f"[{MY_ID}] Rebut /getdata: {data}")
 
     indexes = data.get("indexes", [])
-    node_address = data.get("node_address") 
+    node_address = data.get("node_address")
 
     if not indexes:
         return jsonify({"error": "No indexes provided"}), 400
 
     transactions_to_send = ledger.get_transactions_by_indexes(indexes)
+    logger.info(f"[{MY_ID}] Transactions a enviar: {transactions_to_send}")
 
     if transactions_to_send:
         url = f"{node_address}/transactions"
@@ -134,7 +187,7 @@ def getdata():
             else:
                 return jsonify({"error": f"Failed to send transactions. Status code: {response.status_code}"}), 500
         except requests.exceptions.RequestException as e:
-            print(f"Error enviant transactions: {e}")
+            logger.error(f"[{MY_ID}] Error enviant transactions: {e}")
             return jsonify({"error": "Connection error"}), 500
     else:
         return jsonify({"message": "No transactions found for given indexes"}), 404
@@ -142,6 +195,6 @@ def getdata():
 @app.route('/transactions', methods=['POST'])
 def transactions():
     data = request.get_json()
+    logger.info(f"[{MY_ID}] Rebut /transactions: {data}")
     ledger.process_transactions(data)
-    print(f"Rebut /transactions: {data}")
     return jsonify({"message": "transactions received"}), 200

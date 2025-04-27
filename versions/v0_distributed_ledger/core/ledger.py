@@ -21,6 +21,10 @@ def load_ledger():
             return json.load(f)
         except json.JSONDecodeError:
             return []
+        
+def save_ledger(transactions):
+    with open(LEDGER_FILE, "w") as f:
+        json.dump(transactions, f, indent=4)
 
 
 def save_balances(balances):
@@ -48,6 +52,12 @@ def process_transaction(tx):
         # Actualitzar els saldos
         update_balance(sender, balance - amount)
         update_balance(receiver, get_balance(receiver) + amount)
+
+        # Posar-ho al llibre comptable
+        transactions = load_ledger()
+        load_ledger.append(tx)
+        save_ledger(transactions)
+
         print(f"Transacció OK: {sender} -> {receiver} ({amount})")
         return True
     else:

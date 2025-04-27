@@ -19,3 +19,15 @@ def send_version(from_node_id, to_node_id, known_height=0):
         print(f"Resposta de /version: {response.json()}")
     except Exception as e:
         print(f"Error enviant /version: {e}")
+
+def create_transaction(sender, receiver, amount):
+    payload = {
+        "sender": sender,
+        "receiver": receiver,
+        "amount": amount
+    }
+    try:
+        response = requests.post(f"{nodes[sender]}/create_transaction", json=payload)
+        print(f"Resposta de /create_transaction: {response.json()}")
+    except Exception as e:
+        print(f"Error enviant /create_transaction: {e}")

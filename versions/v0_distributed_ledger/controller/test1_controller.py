@@ -1,5 +1,5 @@
 import time
-from api_helper import send_version
+from api_helper import send_version, create_transaction
 
 
 time.sleep(5)  # Esperem que els nodes estiguin a punt
@@ -16,3 +16,11 @@ send_version("A", "C", 0)
 send_version("B", "C", 0)
 
 # B i C connectats
+
+create_transaction("A", "B", 5)
+time.sleep(5)
+create_transaction("A", "C", 5)
+time.sleep(5)
+create_transaction("C", "B", 5)
+time.sleep(5)
+create_transaction("A", "B", 5)
