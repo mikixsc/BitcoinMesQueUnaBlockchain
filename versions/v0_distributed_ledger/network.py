@@ -2,16 +2,16 @@ from flask import Flask, request, jsonify
 import requests
 from core import ledger
 from datetime import datetime
+import os
 
 app = Flask(__name__)
 
-MY_NODE_ADDRESS = "http://localhost:5000"
-MY_ID = "A"  # Identificador del node
+PORT = int(os.getenv("PORT", 5000))
 
-known_nodes = [
-    "http://localhost:5001",
-    "http://localhost:5002"
-]
+MY_NODE_ADDRESS = "http://" + os.getenv("MY_HOSTNAME", "localhost") + ":" + str(PORT)
+MY_ID = os.getenv("MY_ID", "A")  # Identificador del node
+
+known_nodes = []
 
 @app.route('/version', methods=['POST'])
 def version():
@@ -20,6 +20,9 @@ def version():
     sender_address = data.get("node_address")
     if sender_address:
         try:
+            if sender_address not in known_nodes:
+                known_nodes.append(sender_address)
+                print(f"Node afegit: {sender_address}")
             print(f"Enviant /verack a {sender_address}")
             requests.post(f"{sender_address}/verack")
         except Exception as e:
