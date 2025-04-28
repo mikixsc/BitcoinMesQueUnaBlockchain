@@ -7,6 +7,8 @@ services:
       - PORT=5000
       - MY_ID=A
       - MY_HOSTNAME=node1
+    volumes:
+      - ./data/node1:/app/data
     networks:
       - mynetwork
 
@@ -18,6 +20,8 @@ services:
       - PORT=5001
       - MY_ID=B
       - MY_HOSTNAME=node2
+    volumes:
+      - ./data/node2:/app/data
     networks:
       - mynetwork
 
@@ -29,6 +33,8 @@ services:
       - PORT=5002
       - MY_ID=C
       - MY_HOSTNAME=node3
+    volumes:
+      - ./data/node3:/app/data
     networks:
       - mynetwork
 

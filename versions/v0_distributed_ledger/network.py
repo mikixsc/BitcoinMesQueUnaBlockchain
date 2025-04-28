@@ -20,6 +20,10 @@ MY_ID = os.getenv("MY_ID", "A")  # Identificador del node
 
 known_nodes = []
 
+
+
+# ENDPOINTS per controlar el node
+
 @app.route('/ledger', methods=['GET'])
 def get_ledger():
     try:
@@ -63,7 +67,7 @@ def create_transaction():
 
 
 
-
+# ENDPOINTS per la comunicació entre nodes
 
 @app.route('/version', methods=['POST'])
 def version():
@@ -77,7 +81,11 @@ def version():
                 known_nodes.append(sender_address)
                 logger.info(f"[{MY_ID}] Node afegit a known_nodes: {sender_address}")
             logger.info(f"[{MY_ID}] Enviant /verack a {sender_address}")
-            requests.post(f"{sender_address}/verack")
+            payload = {
+                "node_id": MY_ID,
+                "node_address": MY_NODE_ADDRESS,
+            }
+            requests.post(f"{sender_address}/verack", json=payload)
         except Exception as e:
             logger.error(f"[{MY_ID}] Error enviant /verack: {e}")
     

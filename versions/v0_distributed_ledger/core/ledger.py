@@ -1,8 +1,16 @@
 import json
+import logging
 import os
 
-LEDGER_FILE = "../ledger.json"
-UTXO_FILE = "../utxos.json"
+LEDGER_FILE = "data/ledger.json"
+UTXO_FILE = "data/utxos.json"
+
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] (%(name)s) %(message)s",
+)
+logger = logging.getLogger(__name__)
 
 def load_balances():
     if not os.path.exists(UTXO_FILE):
@@ -55,13 +63,13 @@ def process_transaction(tx):
 
         # Posar-ho al llibre comptable
         transactions = load_ledger()
-        load_ledger.append(tx)
+        transactions.append(tx)
         save_ledger(transactions)
 
-        print(f"Transacció OK: {sender} -> {receiver} ({amount})")
+        logger.info(f"Transacció OK: {sender} -> {receiver} ({amount}) | Ledger height: {len(transactions)}")
         return True
     else:
-        print(f"Transacció FALLIDA: saldo insuficient per {sender}")
+        logger.error(f"Transacció FALLIDA: saldo insuficient per {sender} (saldo: {balance}, amount: {amount})")
         return False
 
 def process_transactions(tx_list):
@@ -94,8 +102,8 @@ def get_missing_transactions(indexes_other_node):
     last_index = get_last_transaction_index()
     last_index_other = max(indexes_other_node) if indexes_other_node else 0
     if last_index==0 and last_index_other!=0:
-        return [1..last_index_other]
+        return list(range(1, last_index_other + 1))
     elif last_index_other>last_index:
-        return [last_index+1..last_index_other]
+        return list(range(last_index + 1, last_index_other + 1))
     else:
         return []
