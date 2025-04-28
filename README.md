@@ -137,3 +137,11 @@ Resposta amb la transaccins
   }
 ]
 ```
+
+### Situació
+
+D'aquesta forma ja tenim distribuit el llibre de comptabilitat. Però encara ens falta solucionar varies problematiques per tal de que sigui un sistema segur, veridic, confiable... 
+
+Per exemple en aquesta versio més simple de xarxa distribuida que hem creat com podem saber que realment les transaccions que es fan venen realitzades per el propietari d'aquelles monedes? 
+
+En la següent versio anirem a solucionar aquest problema amb criptorgrafia!
