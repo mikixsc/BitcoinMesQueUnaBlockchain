@@ -1,0 +1,5 @@
+# Ignorar qualsevol carpeta __pycache__ del projecte
+**/__pycache__/
+
+# Ignorar qualsevol carpeta data a qualsevol nivell
+**/data/
