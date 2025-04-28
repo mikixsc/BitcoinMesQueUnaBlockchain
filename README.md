@@ -145,3 +145,12 @@ D'aquesta forma ja tenim distribuit el llibre de comptabilitat. Però encara ens
 Per exemple en aquesta versio més simple de xarxa distribuida que hem creat com podem saber que realment les transaccions que es fan venen realitzades per el propietari d'aquelles monedes? 
 
 En la següent versio anirem a solucionar aquest problema amb criptorgrafia!
+
+## Digital Signature
+Les firmes digitals utilitzes criptografia asimetrica la cual utiliza clau publica i clau privada. Ho utilitzarem per verificar l'autenticitat de les transaccions i la propietats dels fons que s'estan transferint. 
+
+La clau publica i privada tenen un realcio matematica.
+
+S'utilitza la clau privada per encriptar, la qual el pripietaria ha de resguardar, i la clau publica que prove de la clau privada per decriptar.
+
+In essence, the process involves hashing a message (or electronic data) along with the signer’s private key. The recipient of the message can then use the signer’s public key to validate the signature.
