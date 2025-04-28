@@ -17,10 +17,10 @@ send_version("B", "C", 0)
 
 # B i C connectats
 
-create_transaction("A", "A", "B", 5)
+# Suposem que B es una actor malicios i crear transaccions falses
+
+
 time.sleep(2)
-create_transaction("A", "A", "C", 5)
+create_transaction("B", "A", "B", 10)
 time.sleep(2)
-create_transaction("C", "C", "B", 5)
-time.sleep(2)
-create_transaction("A", "A", "B", 5)
+create_transaction("B", "C", "B", 10)
