@@ -15,18 +15,22 @@ logger = logging.getLogger(__name__)
 def load_balances():
     if not os.path.exists(UTXO_FILE):
         return {}
+    
     with open(UTXO_FILE, "r") as f:
         try:
             return json.load(f)
+        
         except json.JSONDecodeError:
             return {}
 
 def load_ledger():
     if not os.path.exists(LEDGER_FILE):
         return []
+    
     with open(LEDGER_FILE, "r") as f:
         try:
             return json.load(f)
+        
         except json.JSONDecodeError:
             return []
         
@@ -56,35 +60,36 @@ def process_transaction(tx):
 
     balance = get_balance(sender)
     # Verificar que el sender existeix i té saldo suficient
-    if balance >= amount:
-        # Actualitzar els saldos
-        update_balance(sender, balance - amount)
-        update_balance(receiver, get_balance(receiver) + amount)
-
-        # Posar-ho al llibre comptable
-        transactions = load_ledger()
-        transactions.append(tx)
-        save_ledger(transactions)
-
-        logger.info(f"Transacció OK: {sender} -> {receiver} ({amount}) | Ledger height: {len(transactions)}")
-        return True
-    else:
-        logger.error(f"Transacció FALLIDA: saldo insuficient per {sender} (saldo: {balance}, amount: {amount})")
+    if balance < amount:
+        logger.error(f"\n\nTransacció FALLIDA: saldo insuficient per {sender} (saldo: {balance}, amount: {amount})")
         return False
+
+    # Actualitzar els saldos
+    update_balance(sender, balance - amount)
+    update_balance(receiver, get_balance(receiver) + amount)
+
+    # Posar-ho al llibre comptable
+    transactions = load_ledger()
+    transactions.append(tx)
+    save_ledger(transactions)
+
+    logger.info(f"\n\nTransacció OK: {sender} -> {receiver} ({amount}) | Ledger height: {len(transactions)}")
+    return True
 
 def process_transactions(tx_list):
     # Haurian de estar ordenades per index.
     last_index = get_last_transaction_index()
     for tx in tx_list:
-        if tx["index"] == last_index + 1:
-            # Es la seguent que toca
-            result = process_transaction(tx)
-            if not(result):
-                # No ha sigut valida
-                break
-            last_index = tx["index"]
-        else :
+        if tx["index"] != last_index + 1:
             break
+
+        # Es la seguent que toca
+        result = process_transaction(tx)
+        
+        if not(result):
+            # No ha sigut valida
+            break
+        last_index = tx["index"]
 
 def get_last_transaction_index():
     transactions = load_ledger()
