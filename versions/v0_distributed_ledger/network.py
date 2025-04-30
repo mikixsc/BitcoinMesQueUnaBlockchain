@@ -1,7 +1,7 @@
 from flask import Flask, request, jsonify
 import requests
 import logging
-from core import ledger
+import ledger
 from datetime import datetime
 import os
 
