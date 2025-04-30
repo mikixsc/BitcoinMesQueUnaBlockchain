@@ -23,8 +23,8 @@ El llibre de comptabilitat serà un fitxer json on cada entrada sera una transac
 {
   "index": 1,
   "timestamp": "2025-04-14T10:00:00Z",
-  "sender": "A"
-  "receiver": "B"
+  "sender": "A",
+  "receiver": "B",
   "amount": 10
 }
 ```
@@ -154,3 +154,19 @@ La clau publica i privada tenen un realcio matematica.
 S'utilitza la clau privada per encriptar, la qual el pripietaria ha de resguardar, i la clau publica que prove de la clau privada per decriptar.
 
 In essence, the process involves hashing a message (or electronic data) along with the signer’s private key. The recipient of the message can then use the signer’s public key to validate the signature.
+
+
+### Format de la transacció
+
+Hem afegit 2 camps al format de la transacció que ens permetran veure si és una transacció legitima creada pel propietari.
+
+```json
+{
+  "index": 1,
+  "timestamp": "2025-04-14T10:00:00Z",
+  "sender": "A",
+  "receiver": "B",
+  "amount": 10,
+  "signature": "MEUCIQDg23....xYz",
+  "public_key": "04bfc9..."
+}
