@@ -2,7 +2,7 @@
 import ledger
 from datetime import datetime
 
-from digital_signature import PUBLIC_KEY
+from digital_signature import load_or_create_keys, print_keys
 
 
 def create_proto_transaction(sender, receiver, amount):
@@ -18,7 +18,15 @@ def create_transaction(proto_tx, signature):
     """Crea la transacció final afegint la signatura i la clau pública."""
     transaction = proto_tx.copy()
     transaction["signature"] = signature
-    transaction["public_key"] = PUBLIC_KEY.to_string().hex()
+    _, PUBLIC_KEY = load_or_create_keys()
+    transaction["public_key"] = print_keys(PUBLIC_KEY)
+    return transaction
+
+def create_malicious_transaction(proto_tx, signature, public_key):
+    """Crea la transacció final afegint la signatura i la clau pública."""
+    transaction = proto_tx.copy()
+    transaction["signature"] = signature
+    transaction["public_key"] = public_key
     return transaction
 
 def get_proto_transaction(tx):

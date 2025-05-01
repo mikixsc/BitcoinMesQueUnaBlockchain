@@ -6,6 +6,7 @@ import digital_signature
 import utils
 from datetime import datetime
 import os
+import json
 
 # Configuració del logger
 logging.basicConfig(
@@ -42,8 +43,8 @@ def create_transaction():
     data = request.get_json()
     
     proto_tx = utils.create_proto_transaction(data.get("sender"), data.get("receiver"), data.get("amount"))
-
-    proto_tx_hash = digital_signature.hash_message(tx)
+    proto_tx_str = json.dumps(proto_tx, sort_keys=True)
+    proto_tx_hash = digital_signature.hash_message(proto_tx_str)
 
     signature = digital_signature.sign_message(proto_tx_hash)
 
@@ -69,6 +70,37 @@ def create_transaction():
 
     return jsonify({"message": "Transaction created and announced"}), 201    
 
+@app.route('/create_malicious_transaction', methods=['POST'])
+def create_malicious_transaction():
+    data = request.get_json()
+    
+    proto_tx = utils.create_proto_transaction(data.get("sender"), data.get("receiver"), data.get("amount"))
+    proto_tx_str = json.dumps(proto_tx, sort_keys=True)
+    proto_tx_hash = digital_signature.hash_message(proto_tx_str)
+
+    signature = digital_signature.sign_message(proto_tx_hash)
+
+    tx = utils.create_malicious_transaction(proto_tx, signature, data.get("public_key"))
+
+    if not ledger.process_transaction(tx):
+        return jsonify({"error": "Transaction failed"}), 400
+    
+    # Transacció vàlida -> anunciem-la
+    payload = {
+        "indexes": [ledger.get_last_transaction_index()],
+        "node_address": MY_NODE_ADDRESS,
+        "node_id": MY_ID,
+    }
+    for node_address in known_nodes:
+        try:
+            logger.info("\n" + "="*33)
+            logger.info(f"[{MY_ID}] Inventory enviat a {node_address}")
+            requests.post(f"{node_address}/inventory", json=payload)
+            
+        except Exception as e:
+            logger.error(f"[{MY_ID}] Error enviant inventory a {node_address}: {e}")
+
+    return jsonify({"message": "Transaction created and announced"}), 201    
 
 
 

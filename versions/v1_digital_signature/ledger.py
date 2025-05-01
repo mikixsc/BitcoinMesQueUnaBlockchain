@@ -59,6 +59,11 @@ def process_transaction(tx):
     sender = tx["sender"]
     receiver = tx["receiver"]
     amount = tx["amount"]
+    pk = tx["public_key"]
+
+    if(pk != sender):
+        logger.error(f"\n\nTransacció FALLIDA: la clau pública no coincideix amb el sender ({pk} != {sender})")
+        return False
 
     balance = get_balance(sender)
     # Verificar que el sender existeix i té saldo suficient
@@ -68,8 +73,11 @@ def process_transaction(tx):
 
     # Mirar que l'hagi fet el propietari de la clau privada
     proto_tx = utils.get_proto_transaction(tx)
-    message_hash = digital_signature.hash_message(proto_tx)
-    digital_signature.verify_signature(tx["public_key"], tx["signature"], message_hash)
+    proto_tx_str = json.dumps(proto_tx, sort_keys=True)
+    message_hash = digital_signature.hash_message(proto_tx_str)
+    if(not digital_signature.verify_signature(pk, tx["signature"], message_hash)):
+        logger.error(f"\n\nTransacció FALLIDA: la firma no es vàlida")
+        return False
 
     # Actualitzar els saldos
     update_balance(sender, balance - amount)

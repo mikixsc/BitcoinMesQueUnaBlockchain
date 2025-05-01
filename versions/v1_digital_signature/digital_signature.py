@@ -8,6 +8,13 @@ import secrets
 from ecdsa import SECP256k1, SigningKey, VerifyingKey, BadSignatureError
 from ecdsa.ellipticcurve import Point
 from ecdsa.util import sigencode_der, sigdecode_der
+import os
+
+MY_ID = os.getenv("MY_ID", "A")  # Identificador del node
+
+KEY_DIR = os.path.join("data", "keys")
+PRIVATE_KEY_FILE = os.path.join(KEY_DIR, "private_key.pem")
+PUBLIC_KEY_FILE = os.path.join(KEY_DIR, "public_key.pem")
 
 def generate_keys():
     """Generates a private and public key pair."""
@@ -23,7 +30,23 @@ def generate_keys():
 
     return sk, public_key
 
-PRIVATE_KEY, PUBLIC_KEY = generate_keys()
+def load_or_create_keys():
+    if not os.path.exists(KEY_DIR):
+        os.makedirs(KEY_DIR)
+
+    if os.path.exists(PRIVATE_KEY_FILE) and os.path.exists(PUBLIC_KEY_FILE):
+        with open(PRIVATE_KEY_FILE, "rb") as f:
+            sk = SigningKey.from_pem(f.read())
+        with open(PUBLIC_KEY_FILE, "rb") as f:
+            vk = sk.get_verifying_key()
+    else:
+        sk, vk = generate_keys()
+        with open(PRIVATE_KEY_FILE, "wb") as f:
+            f.write(sk.to_pem())
+        with open(PUBLIC_KEY_FILE, "wb") as f:
+            f.write(vk.to_pem())
+
+    return sk, vk
 
 
 def hash_message(message):
@@ -36,11 +59,14 @@ def print_keys(key):
     return printable_key
 
 
-def sign_message(private_key, message_hash, generator_point, random_key):
+def sign_message(message_hash):
     """Signs a message."""
+    random_key = secrets.randbelow(SECP256k1.order)
+    generator_point = Point(SECP256k1.curve, SECP256k1.generator.x(), SECP256k1.generator.y(), SECP256k1.order)
     R = random_key * generator_point
     r = R.x() % SECP256k1.order
-    sk_int = int.from_bytes(private_key.to_string(), byteorder="big")
+    PRIVATE_KEY, _ = load_or_create_keys()
+    sk_int = int.from_bytes(PRIVATE_KEY.to_string(), byteorder="big")
     message_hash_int = int.from_bytes(message_hash, byteorder="big")
     s = (pow(random_key, -1, SECP256k1.order) * (message_hash_int + sk_int * r)) % SECP256k1.order
 
