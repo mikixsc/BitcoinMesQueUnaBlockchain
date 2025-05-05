@@ -3,10 +3,15 @@ import logging
 import os
 import digital_signature
 import utils
+from datetime import datetime
+import hashlib
+from network import announce_block
 
 LEDGER_FILE = "data/ledger.json"
 UTXO_FILE = "data/utxos.json"
 MEMPOOL_FILE = "data/mempool.json"
+
+MAX_MEMPOOL = 5
 
 
 logging.basicConfig(
@@ -50,6 +55,11 @@ def load_ledger():
         except json.JSONDecodeError:
             return []
         
+def save_mempool(transactions):
+    with open(MEMPOOL_FILE, "w") as f:
+        json.dump(transactions, f, indent=4)
+
+        
 def save_ledger(transactions):
     with open(LEDGER_FILE, "w") as f:
         json.dump(transactions, f, indent=4)
@@ -73,6 +83,58 @@ def update_balance(utxo, new_balance):
     balances = load_balances()
     balances[utxo] = new_balance
     save_balances(balances)
+
+def get_transaction(txid):
+    mempool = load_mempool()
+    for tx in mempool:
+        if tx["txid"] == txid:
+            return tx
+    
+    return None
+
+def get_block(hash):
+    blockchain = load_ledger() 
+    for block in blockchain:
+        if block["hash"] == hash:
+            return block
+    return None
+
+
+def get_prev_hash():
+    ledger = load_ledger()
+    if not ledger:
+        return "0" * 64  # Genesis block case
+    return ledger[-1]["hash"]
+
+
+def create_block():
+    transactions = load_mempool()
+
+    block = {
+        "index": get_last_index()+1,
+        "timestamp": datetime.utcnow().isoformat() + "Z",
+        "prev_hash": get_prev_hash(),
+        "transactions": transactions
+    }
+    # fer el hash del bloc
+    block_serialized = json.dumps(block, sort_keys=True).encode()
+    block_hash = hashlib.sha256(block_serialized).hexdigest()
+    block["hash"] = block_hash
+
+    # Guardar-lo al ledger
+    ledger = load_ledger()
+    ledger.append(block)
+    save_ledger(ledger)
+
+    # Netejar la mempool
+    save_mempool([])
+
+    # Actualitzar els saldos definitius
+    save_balances(temp_balances)
+
+    logger.info(f"Bloc creat amb hash {block_hash} i {len(transactions)} transaccions.")
+
+def process_block(block):
 
 
 def process_transaction(tx):
@@ -110,7 +172,11 @@ def process_transaction(tx):
         logger.error(f"\n\nTransacció FALLIDA: ja la tenia")
         return False
     transactions.append(tx)
-    save_ledger(transactions)
+    save_mempool(transactions)
+
+    if(len(transactions) >= MAX_MEMPOOL):
+        create_block()
+        announce_block(get_prev_hash())
 
     logger.info(f"\n\nTransacció OK: {sender} -> {receiver} ({amount}) | Ledger height: {len(transactions)}")
     return True
@@ -130,7 +196,7 @@ def process_transactions(tx_list):
             break
         last_index = tx["index"]
 
-def get_last_transaction_index():
+def get_last_index():
     transactions = load_ledger()
     if not transactions:
         return 0

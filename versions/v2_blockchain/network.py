@@ -239,6 +239,24 @@ def block():
     return jsonify({"message": "block received"}), 200
 
 
+# Auxiliars
+
+def announce_block(hash):
+    for node_address in known_nodes:
+        send_inventory(node_address, "block")
+
+def send_inventory(destination, type, hash):
+    payload = {
+        "type": type,
+        "hash": hash,
+        "node_address": MY_NODE_ADDRESS,
+        "node_id": MY_ID
+    }
+    try:
+        logger.info(f"[{MY_ID}] Sending inventory")
+        requests.post(f"{destination}/inventory", json=payload)
+    except requests.exceptions.RequestException as e:
+        logger.error(f"[{MY_ID}] Error sending inventory: {e}")
 
 def send_getdata(destination, type, hash):
     payload = {
@@ -248,6 +266,7 @@ def send_getdata(destination, type, hash):
         "node_id": MY_ID
     }
     try:
+        logger.info(f"[{MY_ID}] Sending getdata")
         requests.post(f"{destination}/getdata", json=payload)
     except requests.exceptions.RequestException as e:
         logger.error(f"[{MY_ID}] Error sending getdata: {e}")
