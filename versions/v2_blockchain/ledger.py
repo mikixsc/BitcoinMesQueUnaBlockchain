@@ -5,7 +5,8 @@ import digital_signature
 import utils
 from datetime import datetime
 import hashlib
-from network import announce_block
+from network import announce_block, send_getdata
+from init_data import build_utxos
 
 LEDGER_FILE = "data/ledger.json"
 UTXO_FILE = "data/utxos.json"
@@ -13,12 +14,15 @@ MEMPOOL_FILE = "data/mempool.json"
 
 MAX_MEMPOOL = 5
 
+GENESIS_BLOCK_PREV_HASH = "0" * 64
 
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(levelname)s] (%(name)s) %(message)s",
 )
 logger = logging.getLogger(__name__)
+
+blocks_to_validate = []
 
 def load_mempool():
     if not os.path.exists(MEMPOOL_FILE):
@@ -103,7 +107,7 @@ def get_block(hash):
 def get_prev_hash():
     ledger = load_ledger()
     if not ledger:
-        return "0" * 64  # Genesis block case
+        return GENESIS_BLOCK_PREV_HASH  # Genesis block case
     return ledger[-1]["hash"]
 
 
@@ -117,16 +121,33 @@ def create_block():
         "transactions": transactions
     }
     # fer el hash del bloc
-    block_serialized = json.dumps(block, sort_keys=True).encode()
-    block_hash = hashlib.sha256(block_serialized).hexdigest()
-    block["hash"] = block_hash
+    block["hash"] = utils.hash_block(block)
 
     add_block(block)
 
-    logger.info(f"Bloc creat amb hash {block_hash} i {len(transactions)} transaccions.")
+    logger.info(f"Bloc creat amb hash {block["hash"]} i {len(transactions)} transaccions.")
 
 
 def validate_block(block):
+    # Aqui ja prev_hash es l'ultim bloc que tinc anterior
+
+    #Mirar que el hash sigui el correcte
+    block_copy = block.copy()
+    received_hash = block_copy.pop("hash")
+    calculated_hash = utils.hash_block(block_copy)
+    if received_hash != calculated_hash:
+        logger.error("Hash del bloc no coincideix")
+        return False
+
+
+    # Fer un recorregut per les transaccions i cridant a process_transaction
+    # # Només he de reutilizar si no estic reconstruint, per tant he de tenir en compte les que tinc fetes si blocs_to_validate es buit, si no no.
+    for tx in block["transactions"]:
+        if not process_transaction(tx, False, True):
+            logger.error("Transacció invàlida en el bloc")
+            return False
+    return True
+
 
 
 def add_block(block):
@@ -140,37 +161,95 @@ def add_block(block):
 
     # Actualitzar els saldos definitius
     save_balances(temp_balances)
+    temp_balances = load_balances()
 
-def process_block(block):
+def reconstructing_blockchain():
+    return len(blocks_to_validate)>0
+
+
+def substract_tx(tx):
+    sender = tx["sender"]
+    receiver = tx["receiver"]
+    amount = tx["amount"]
+
+    temp_balances[sender] = temp_balances.get(sender, 0) + amount
+    temp_balances[receiver] = temp_balances.get(receiver, 0) - amount
+
+
+def balances_in(hash):
+    temp_balances = load_balances()
+    block_hash = get_prev_hash()
+    while(block_hash!=hash):
+        block = get_block(block_hash)
+        for tx in block["transactions"]:
+            substract_tx(tx)
+        block_hash = block["prev_hash"]
+        
+
+def reconstruct(initial_hash):
+    # He de mirar si tots els blocs que estan a blocks_to_validate son valids
+    # Si ho son crear la blockchain amb tots aquests blocs afegits despres del inital hash
+    # Si no deixar-ho com esta
+    save_mempool([])
+    # fer que temp_balances es possi en l'estat en el que estavem en el bloc inital_hash
+    if(initial_hash==GENESIS_BLOCK_PREV_HASH):
+        # Obtenir l'init # Quan es fagui pow inicialitzar a per defecte
+        temp_balances = build_utxos()
+    else: 
+        temp_balances = balances_in(initial_hash)
+
+    
+    for block in blocks_to_validate:
+        if(not validate_block(block)):
+            temp_balances = load_balances()
+            blocks_to_validate.clear()
+            return
+
+    for block in blocks_to_validate:
+        add_block(block)
+
+    blocks_to_validate.clear()
+
+
+def process_block(sender, block):
 
     hash = block["hash"]
     prev = block["prev_hash"]
     index = block["index"]
-
-    # Es un bloc que ja tinc --> comprovar que es el mateix index (te sentit aixo de comprovar lindex?)
-    if(already_have_it("block", hash)):
-        logger.info(f"Ja tinc el bloc")
-        return
     
-    # Es un bloc que no tinc
-    
-    # bloc amb index més petit o igual 
-    if(index <= get_last_index()):
-        logger.info(f"Es un bloc anterior")
-        return
 
     # Es el seguent bloc 
     if(get_prev_hash() == prev):
-        # cal que miri l'index que també sigui igual a l'ultim?
-        if(validate_block(block)):
-            add_block(block)
-
-    # Es un bloc més alt, pero no es el seguent
-    # Entenc que he de mirar quin es l'ultim block en el que estem d'acord, validar la part nova i si es valida afegirla, sino quedarme amb el que tinc
+        if(reconstructing_blockchain()):
+            blocks_to_validate.append(block)
+            reconstruct(prev)
+        else:
+            if index != get_last_index() + 1:
+                logger.warning("Index incorrecte pel bloc consecutiu")
+                return
+            if(validate_block(block)):
+                add_block(block)
     
+    # bloc amb index més petit o igual 
+    elif(not reconstructing_blockchain() and index <= get_last_index()):
+        logger.info(f"Es un bloc anterior")
+        return
+    
+    else:
+        # Es un bloc que ja tinc
+        if(already_have_it("block", hash)):
+            logger.info(f"Ja tinc el bloc")
+            if(reconstructing_blockchain()):
+                reconstruct(hash)
+            return
 
+        # Es un bloc més alt, pero no es el seguent
+        blocks_to_validate.insert(0, block)
+        if(index==0 and prev==GENESIS_BLOCK_PREV_HASH):
+            reconstruct(GENESIS_BLOCK_PREV_HASH)
+        send_getdata(sender, "block", prev)
 
-def process_transaction(tx):
+def process_transaction(tx, addToMempool, lookInMempool):
     sender = tx["sender"]
     receiver = tx["receiver"]
     amount = tx["amount"]
@@ -187,9 +266,9 @@ def process_transaction(tx):
         logger.error(f"\n\nTransacció FALLIDA: saldo insuficient per {sender} (saldo: {balance}, amount: {amount})")
         return False
     
-    if(already_have_it("tx", tx["txid"])):
-        logger.error(f"\n\nTransacció FALLIDA: ja la tenia")
-        return False
+    if(lookInMempool and already_have_it("tx", tx["txid"])):
+        logger.info(f"\n\nTransacció: ja la tenia")
+        return True
 
     # Mirar que l'hagi fet el propietari de la clau privada
     proto_tx = utils.get_proto_transaction(tx)
@@ -201,56 +280,25 @@ def process_transaction(tx):
 
     # Actualitzar els saldos temporals
     temp_balances[sender] = balance - amount
-    temp_balances[sender] = temp_balances.get(receiver, 0) + amount
+    temp_balances[receiver] = temp_balances.get(receiver, 0) + amount
 
     # Posar-ho a la mempool
-    transactions = load_mempool()
-    transactions.append(tx)
-    save_mempool(transactions)
+    if(addToMempool):
+        transactions = load_mempool()
+        transactions.append(tx)
+        save_mempool(transactions)
 
-    if(len(transactions) >= MAX_MEMPOOL):
-        create_block()
-        announce_block(get_prev_hash())
+        if(len(transactions) >= MAX_MEMPOOL):
+            create_block()
+            announce_block(get_prev_hash())
 
-    logger.info(f"\n\nTransacció OK: {sender} -> {receiver} ({amount}) | Ledger height: {len(transactions)}")
     return True
-
-def process_transactions(tx_list):
-    # Haurian de estar ordenades per index.
-    last_index = get_last_transaction_index()
-    for tx in tx_list:
-        if tx["index"] != last_index + 1:
-            break
-
-        # Es la seguent que toca
-        result = process_transaction(tx)
-        
-        if not(result):
-            # No ha sigut valida
-            break
-        last_index = tx["index"]
 
 def get_last_index():
     blockchain = load_ledger()
     if not blockchain:
         return 0
     return blockchain[-1]["index"]
-
-
-def get_transactions_by_indexes(indexes):
-    transactions = load_ledger()  # Funció que carrega ledger.json
-    found = [tx for tx in transactions if tx["index"] in indexes]
-    return found
-
-def get_missing_transactions(indexes_other_node):
-    last_index = get_last_transaction_index()
-    last_index_other = max(indexes_other_node) if indexes_other_node else 0
-    if last_index==0 and last_index_other!=0:
-        return list(range(1, last_index_other + 1))
-    elif last_index_other>last_index:
-        return list(range(last_index + 1, last_index_other + 1))
-    else:
-        return []
     
 
 def already_have_it(type, hash):

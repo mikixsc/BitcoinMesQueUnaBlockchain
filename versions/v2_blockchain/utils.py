@@ -2,6 +2,9 @@
 import ledger
 from datetime import datetime
 
+import json
+import hashlib
+
 from digital_signature import load_or_create_keys, print_keys
 
 
@@ -39,3 +42,7 @@ def get_proto_transaction(tx):
         "amount": tx["amount"]
     }
     return proto_tx
+
+def hash_block(block):
+    block_serialized = json.dumps(block, sort_keys=True).encode()
+    return hashlib.sha256(block_serialized).hexdigest()

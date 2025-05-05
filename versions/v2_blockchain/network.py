@@ -214,20 +214,24 @@ def getdata():
     if(info_type==TYPE_BLOCK):
         block = ledger.get_block(hash)
         if(block):
+            if(ledger.reconstructing_blockchain()):
+                return jsonify({"message": "Doing reconstruction"}), 201
             send_block(destination, block)
     elif(info_type==TYPE_TRANSACTION):
         tx = ledger.get_transaction(hash)
         if(tx):
             send_transaction(destination, tx)
     else:
-        logger.error(f"[{MY_ID}] Error in getdata, type not known")
+        return jsonify({"error": "Error in getdata, type not known"}), 400
+    
+    return jsonify({"message": "Asked data"}), 200
 
 
 @app.route('/transaction', methods=['POST'])
 def transaction():
     data = request.get_json()
     logger.info(f"[{MY_ID}] Rebut /transaction")
-    ledger.process_transaction(data)
+    ledger.process_transaction(data, True, True)
     return jsonify({"message": "transaction received"}), 200
 
 
@@ -235,7 +239,7 @@ def transaction():
 def block():
     data = request.get_json()
     logger.info(f"[{MY_ID}] Rebut /block")
-    ledger.process_block(data)
+    ledger.process_block(data.get("node_address"),data.get("block"))
     return jsonify({"message": "block received"}), 200
 
 
@@ -281,7 +285,11 @@ def send_transaction(destination, transaction):
 
 
 def send_block(destination, block):
+    payload = {
+        "block": block,
+        "node_address": MY_NODE_ADDRESS,
+    }
     try:
-        requests.post(f"{destination}/block", json=block)
+        requests.post(f"{destination}/block", json=payload)
     except requests.exceptions.RequestException as e:
         logger.error(f"[{MY_ID}] Error sending block: {e}")
