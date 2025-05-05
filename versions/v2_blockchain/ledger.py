@@ -121,6 +121,15 @@ def create_block():
     block_hash = hashlib.sha256(block_serialized).hexdigest()
     block["hash"] = block_hash
 
+    add_block(block)
+
+    logger.info(f"Bloc creat amb hash {block_hash} i {len(transactions)} transaccions.")
+
+
+def validate_block(block):
+
+
+def add_block(block):
     # Guardar-lo al ledger
     ledger = load_ledger()
     ledger.append(block)
@@ -132,9 +141,33 @@ def create_block():
     # Actualitzar els saldos definitius
     save_balances(temp_balances)
 
-    logger.info(f"Bloc creat amb hash {block_hash} i {len(transactions)} transaccions.")
-
 def process_block(block):
+
+    hash = block["hash"]
+    prev = block["prev_hash"]
+    index = block["index"]
+
+    # Es un bloc que ja tinc --> comprovar que es el mateix index (te sentit aixo de comprovar lindex?)
+    if(already_have_it("block", hash)):
+        logger.info(f"Ja tinc el bloc")
+        return
+    
+    # Es un bloc que no tinc
+    
+    # bloc amb index més petit o igual 
+    if(index <= get_last_index()):
+        logger.info(f"Es un bloc anterior")
+        return
+
+    # Es el seguent bloc 
+    if(get_prev_hash() == prev):
+        # cal que miri l'index que també sigui igual a l'ultim?
+        if(validate_block(block)):
+            add_block(block)
+
+    # Es un bloc més alt, pero no es el seguent
+    # Entenc que he de mirar quin es l'ultim block en el que estem d'acord, validar la part nova i si es valida afegirla, sino quedarme amb el que tinc
+    
 
 
 def process_transaction(tx):
@@ -153,6 +186,10 @@ def process_transaction(tx):
     if balance < amount:
         logger.error(f"\n\nTransacció FALLIDA: saldo insuficient per {sender} (saldo: {balance}, amount: {amount})")
         return False
+    
+    if(already_have_it("tx", tx["txid"])):
+        logger.error(f"\n\nTransacció FALLIDA: ja la tenia")
+        return False
 
     # Mirar que l'hagi fet el propietari de la clau privada
     proto_tx = utils.get_proto_transaction(tx)
@@ -168,9 +205,6 @@ def process_transaction(tx):
 
     # Posar-ho a la mempool
     transactions = load_mempool()
-    if(already_have_it("tx", tx["txid"])):
-        logger.error(f"\n\nTransacció FALLIDA: ja la tenia")
-        return False
     transactions.append(tx)
     save_mempool(transactions)
 
@@ -197,11 +231,11 @@ def process_transactions(tx_list):
         last_index = tx["index"]
 
 def get_last_index():
-    transactions = load_ledger()
-    if not transactions:
+    blockchain = load_ledger()
+    if not blockchain:
         return 0
-    last_index = max(tx["index"] for tx in transactions)
-    return last_index
+    return blockchain[-1]["index"]
+
 
 def get_transactions_by_indexes(indexes):
     transactions = load_ledger()  # Funció que carrega ledger.json
