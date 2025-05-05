@@ -6,6 +6,7 @@ import utils
 
 LEDGER_FILE = "data/ledger.json"
 UTXO_FILE = "data/utxos.json"
+MEMPOOL_FILE = "data/mempool.json"
 
 
 logging.basicConfig(
@@ -13,6 +14,17 @@ logging.basicConfig(
     format="%(asctime)s [%(levelname)s] (%(name)s) %(message)s",
 )
 logger = logging.getLogger(__name__)
+
+def load_mempool():
+    if not os.path.exists(MEMPOOL_FILE):
+        return []
+    
+    with open(MEMPOOL_FILE, "r") as f:
+        try:
+            return json.load(f)
+        
+        except json.JSONDecodeError:
+            return []
 
 def load_balances():
     if not os.path.exists(UTXO_FILE):
@@ -24,6 +36,8 @@ def load_balances():
         
         except json.JSONDecodeError:
             return {}
+        
+temp_balances = load_balances()
 
 def load_ledger():
     if not os.path.exists(LEDGER_FILE):
@@ -55,6 +69,12 @@ def get_balance(utxo):
     balances = load_balances()
     return balances.get(utxo, 0)
 
+def update_balance(utxo, new_balance):
+    balances = load_balances()
+    balances[utxo] = new_balance
+    save_balances(balances)
+
+
 def process_transaction(tx):
     sender = tx["sender"]
     receiver = tx["receiver"]
@@ -65,7 +85,8 @@ def process_transaction(tx):
         logger.error(f"\n\nTransacció FALLIDA: la clau pública no coincideix amb el sender ({pk} != {sender})")
         return False
 
-    balance = get_balance(sender)
+    # Agafar el saldo temporal
+    balance = temp_balances.get(sender, 0)
     # Verificar que el sender existeix i té saldo suficient
     if balance < amount:
         logger.error(f"\n\nTransacció FALLIDA: saldo insuficient per {sender} (saldo: {balance}, amount: {amount})")
@@ -79,12 +100,15 @@ def process_transaction(tx):
         logger.error(f"\n\nTransacció FALLIDA: la firma no es vàlida")
         return False
 
-    # Actualitzar els saldos
-    update_balance(sender, balance - amount)
-    update_balance(receiver, get_balance(receiver) + amount)
+    # Actualitzar els saldos temporals
+    temp_balances[sender] = balance - amount
+    temp_balances[sender] = temp_balances.get(receiver, 0) + amount
 
-    # Posar-ho al llibre comptable
-    transactions = load_ledger()
+    # Posar-ho a la mempool
+    transactions = load_mempool()
+    if(already_have_it("tx", tx["txid"])):
+        logger.error(f"\n\nTransacció FALLIDA: ja la tenia")
+        return False
     transactions.append(tx)
     save_ledger(transactions)
 
@@ -127,3 +151,12 @@ def get_missing_transactions(indexes_other_node):
         return list(range(last_index + 1, last_index_other + 1))
     else:
         return []
+    
+
+def already_have_it(type, hash):
+    if(type == "tx"):
+        data = load_mempool()
+        return any(hash == tx["txid"] for tx in data)
+    elif(type == "block"):
+        data = load_ledger()
+        return any(hash == block["hash"] for block in data)

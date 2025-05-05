@@ -147,14 +147,24 @@ Per exemple en aquesta versio més simple de xarxa distribuida que hem creat com
 En la següent versio anirem a solucionar aquest problema amb criptorgrafia!
 
 ## Digital Signature
-Les firmes digitals utilitzes criptografia asimetrica la cual utiliza clau publica i clau privada. Ho utilitzarem per verificar l'autenticitat de les transaccions i la propietats dels fons que s'estan transferint. 
+Ara farem servir criptografia asimètrica per garantir que només el propietari d’uns fons pot autoritzar-ne la transferència.
 
-La clau publica i privada tenen un realcio matematica.
+Claus
 
-S'utilitza la clau privada per encriptar, la qual el pripietaria ha de resguardar, i la clau publica que prove de la clau privada per decriptar.
+- Clau privada: el propietari mai comparteix.
 
-In essence, the process involves hashing a message (or electronic data) along with the signer’s private key. The recipient of the message can then use the signer’s public key to validate the signature.
+- Clau pública: es deriva matemàticament de la privada i es pot revelar a tothom.
 
+Signar un missatge
+
+- Es calcula el hash del missatge (doble SHA‑256 de la transacció).
+
+- Amb la clau privada es firma l'anterior hash, creant la signatura-
+
+- La signatura i la clau pública s’afegeixen a la transacció.
+
+Verificar
+- Qualsevol node pot comprovar la signatura amb el mateix hash i la clau pública. Si la validació falla, la transacció és rebutjada.
 
 ### Format de la transacció
 
@@ -172,3 +182,51 @@ Hem afegit 2 camps al format de la transacció que ens permetran veure si és un
 }
 ```
 
+## Blockchain
+Fins ara guardàvem totes les transaccions en un únic fitxer ledger.json. A partir d'ara evolucionem cap a una cadena de blocs, cada bloc agrupa un subconjunt de transaccions i enllaça amb l’anterior mitjançant un hash.
+
+### Estructura d'un bloc
+
+```json
+{
+  "index": 0,
+  "timestamp": "2025-05-05T12:00:00Z",
+  "prev_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+  "transactions": [
+    {
+      "txid": "a3f2…",
+      "sender": "MEUCIQDg23....xYz",
+      "receiver": "MEUCIQDg23....xYz",
+      "amount": 10,
+      "signature": "MEUCIQDg23....xYz",
+      "public_key": "04bfc9..."
+    }
+  ],
+  "hash": "5fe2…"
+}
+```
+
+Per tant ara el llibre de comptabilitat serà una llista de blocs encadenats, en comptes de una llista de transaccions.
+
+#### POST /inventory
+Té noves transacció
+
+```json
+{
+  "type": "block",
+  "hash": "5fe2…",
+  "node_address": "http://localhost:5001",
+  "node_id": "A",
+}
+```
+
+#### POST /getdata
+El node demana les dades reals corresponents a un inventory.
+```json
+{
+  "type": "tx",
+  "hash": "a3f2…",
+  "node_address": "http://localhost:5001",
+  "node_id": "A",
+}
+```

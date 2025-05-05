@@ -7,6 +7,7 @@ from digital_signature import print_keys
 DATA_DIR = "data"
 NODES = ["node1", "node2", "node3"]
 LEDGER_CONTENT = []
+MEMPOOL_CONTENT = []
 
 
 
@@ -31,12 +32,16 @@ def create_node_data(node_name):
     
     utxos_path = os.path.join(node_path, "utxos.json")
     ledger_path = os.path.join(node_path, "ledger.json")
+    mempool_path = os.path.join(node_path, "mempool.json")
     
     with open(utxos_path, "w") as f:
         json.dump(build_utxos(), f, indent=2)
         
     with open(ledger_path, "w") as f:
         json.dump(LEDGER_CONTENT, f, indent=2)
+
+    with open(mempool_path, "w") as f:
+        json.dump(MEMPOOL_CONTENT, f, indent=2)
 
     print(f"[OK] Creats fitxers per {node_name}")
 

@@ -7,6 +7,11 @@ import utils
 from datetime import datetime
 import os
 import json
+import hashlib
+
+
+TYPE_TRANSACTION = "tx"
+TYPE_BLOCK = "block"
 
 # Configuració del logger
 logging.basicConfig(
@@ -50,12 +55,16 @@ def create_transaction():
 
     tx = utils.create_transaction(proto_tx, signature)
 
+    canonical = json.dumps(tx, sort_keys=True, separators=(',', ':')).encode()
+    tx["txid"] = hashlib.sha256(canonical).hexdigest()
+
     if not ledger.process_transaction(tx):
         return jsonify({"error": "Transaction failed"}), 400
     
     # Transacció vàlida -> anunciem-la
     payload = {
-        "indexes": [ledger.get_last_transaction_index()],
+        "type": TYPE_BLOCK,
+        "hash": tx["txid"],
         "node_address": MY_NODE_ADDRESS,
         "node_id": MY_ID,
     }
@@ -186,32 +195,12 @@ def inventory():
     data = request.get_json()
     logger.info(f"[{MY_ID}] Rebut /inventory: {data}")
 
-    indexes_other_node = data.get("indexes", [])
-    node_address = data.get("node_address")
+    hash = data.get("hash")
+    info_type = data.get("type")
+    if(ledger.already_have_it(info_type, hash)):
+        return jsonify({"message": "Already have it"}), 200
 
-    if not indexes_other_node or not node_address:
-        return jsonify({"error": "No indexes or node_address provided"}), 400
-    
-    missing_indexes = ledger.get_missing_transactions(indexes_other_node)
-    logger.info(f"[{MY_ID}] Missing transactions: {missing_indexes}")
-
-    if not missing_indexes:
-        return jsonify({"message": "No missing transactions"}), 200
-    
-    payload = {
-        "indexes": missing_indexes,
-        "node_address": MY_NODE_ADDRESS
-    }
-    try:
-        response = requests.post(f"{node_address}/getdata", json=payload)
-        if response.status_code == 200:
-            return jsonify({"message": "Requested missing transactions"}), 200
-        else:
-            return jsonify({"error": "Failed to request missing transactions"}), 500
-    
-    except requests.exceptions.RequestException as e:
-        logger.error(f"[{MY_ID}] Error demanant transaccions: {e}")
-        return jsonify({"error": "Connection error"}), 500
+    send_getdata(data.get("node_address"), info_type, hash)
 
 
 @app.route('/getdata', methods=['POST'])
@@ -219,34 +208,61 @@ def getdata():
     data = request.get_json()
     logger.info(f"[{MY_ID}] Rebut /getdata: {data}")
 
-    indexes = data.get("indexes", [])
-    node_address = data.get("node_address")
-
-    if not indexes:
-        return jsonify({"error": "No indexes provided"}), 400
-
-    transactions_to_send = ledger.get_transactions_by_indexes(indexes)
-    logger.info(f"[{MY_ID}] Transactions a enviar: {transactions_to_send}")
-
-    if not transactions_to_send:
-        return jsonify({"message": "No transactions found for given indexes"}), 404
-
-    url = f"{node_address}/transactions"
-    try:
-        response = requests.post(url, json=transactions_to_send)
-        if response.status_code == 200:
-            return jsonify({"message": "Transactions sent"}), 200
-        else:
-            return jsonify({"error": f"Failed to send transactions. Status code: {response.status_code}"}), 500
-    
-    except requests.exceptions.RequestException as e:
-        logger.error(f"[{MY_ID}] Error enviant transactions: {e}")
-        return jsonify({"error": "Connection error"}), 500
+    info_type = data.get("type")
+    hash = data.get("hash")
+    destination = data.get("node_address")
+    if(info_type==TYPE_BLOCK):
+        block = ledger.get_block(hash)
+        if(block):
+            send_block(destination, block)
+    elif(info_type==TYPE_TRANSACTION):
+        tx = ledger.get_transaction(hash)
+        if(tx):
+            send_transaction(destination, tx)
+    else:
+        logger.error(f"[{MY_ID}] Error in getdata, type not known")
 
 
-@app.route('/transactions', methods=['POST'])
-def transactions():
+@app.route('/transaction', methods=['POST'])
+def transaction():
     data = request.get_json()
-    logger.info(f"[{MY_ID}] Rebut /transactions: {data}")
-    ledger.process_transactions(data)
-    return jsonify({"message": "transactions received"}), 200
+    logger.info(f"[{MY_ID}] Rebut /transaction")
+    ledger.process_transaction(data)
+    return jsonify({"message": "transaction received"}), 200
+
+
+@app.route('/block', methods=['POST'])
+def block():
+    data = request.get_json()
+    logger.info(f"[{MY_ID}] Rebut /block")
+    ledger.process_block(data)
+    return jsonify({"message": "block received"}), 200
+
+
+
+def send_getdata(destination, type, hash):
+    payload = {
+        "type": type,
+        "hash": hash,
+        "node_address": MY_NODE_ADDRESS,
+        "node_id": MY_ID
+    }
+    try:
+        requests.post(f"{destination}/getdata", json=payload)
+    except requests.exceptions.RequestException as e:
+        logger.error(f"[{MY_ID}] Error sending getdata: {e}")
+
+
+def send_transaction(destination, transaction):
+    try:
+        requests.post(f"{destination}/transaction", json=transaction)
+    except requests.exceptions.RequestException as e:
+        logger.error(f"[{MY_ID}] Error sending transaction: {e}")
+
+
+
+def send_block(destination, block):
+    try:
+        requests.post(f"{destination}/block", json=block)
+    except requests.exceptions.RequestException as e:
+        logger.error(f"[{MY_ID}] Error sending block: {e}")
