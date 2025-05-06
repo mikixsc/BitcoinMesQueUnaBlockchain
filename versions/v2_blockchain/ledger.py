@@ -129,6 +129,7 @@ def create_block():
 
 
 def validate_block(block):
+    global temp_balances
     # Aqui ja prev_hash es l'ultim bloc que tinc anterior
 
     #Mirar que el hash sigui el correcte
@@ -142,8 +143,11 @@ def validate_block(block):
 
     # Fer un recorregut per les transaccions i cridant a process_transaction
     # # Només he de reutilizar si no estic reconstruint, per tant he de tenir en compte les que tinc fetes si blocs_to_validate es buit, si no no.
+    
+    # Restart balances
+    temp_balances = load_balances()
     for tx in block["transactions"]:
-        if not process_transaction(tx, False, True):
+        if not process_transaction(tx, False, False):
             logger.error("Transacció invàlida en el bloc")
             return False
     return True

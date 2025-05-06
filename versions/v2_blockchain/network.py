@@ -58,21 +58,13 @@ def create_transaction():
     canonical = json.dumps(tx, sort_keys=True, separators=(',', ':')).encode()
     tx["txid"] = hashlib.sha256(canonical).hexdigest()
 
-    if not ledger.process_transaction(tx):
+    if not ledger.process_transaction(tx, True, True):
         return jsonify({"error": "Transaction failed"}), 400
     
     # Transacció vàlida -> anunciem-la
-    payload = {
-        "type": TYPE_BLOCK,
-        "hash": tx["txid"],
-        "node_address": MY_NODE_ADDRESS,
-        "node_id": MY_ID,
-    }
     for node_address in known_nodes:
         try:
-            logger.info("\n" + "="*33)
-            logger.info(f"[{MY_ID}] Inventory enviat a {node_address}")
-            requests.post(f"{node_address}/inventory", json=payload)
+            send_inventory(node_address, TYPE_TRANSACTION, tx["txid"])
             
         except Exception as e:
             logger.error(f"[{MY_ID}] Error enviant inventory a {node_address}: {e}")
@@ -96,7 +88,7 @@ def create_malicious_transaction():
     
     # Transacció vàlida -> anunciem-la
     payload = {
-        "indexes": [ledger.get_last_transaction_index()],
+        "indexes": [ledger.get_last_index()],
         "node_address": MY_NODE_ADDRESS,
         "node_id": MY_ID,
     }
