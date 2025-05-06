@@ -163,12 +163,9 @@ def add_block(block):
     # Actualitzar els saldos definitius
     save_balances(temp_balances)
     temp_balances = load_balances()
-
-    try:
-        from app import block_timer_event
-        block_timer_event.set()
-    except ImportError:
-        pass
+    
+    from shared import block_timer_event
+    block_timer_event.set()
 
 
 

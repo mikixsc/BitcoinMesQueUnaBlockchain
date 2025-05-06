@@ -201,6 +201,7 @@ def inventory():
         return jsonify({"message": "Already have it"}), 200
 
     send_getdata(data.get("node_address"), info_type, hash)
+    return jsonify({"message": "Asked"}), 200
 
 
 @app.route('/getdata', methods=['POST'])

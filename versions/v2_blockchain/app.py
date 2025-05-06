@@ -5,21 +5,22 @@ import threading
 import random
 import ledger
 
-from threading import Event
-
-block_timer_event = Event()
-
-
-PORT = int(os.getenv("PORT", 5000))
+from shared import block_timer_event
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+
+logger.info(f"[{os.getenv('MY_ID')}] block_timer_event en app: {id(block_timer_event)}")
+
+PORT = int(os.getenv("PORT", 5000))
 
 def start_block_timer():
     while True:
         interval = random.randint(50, 70)
         logger.info(f"[{os.getenv('MY_ID')}] Esperant {interval} segons abans de crear bloc...")
         block_timer_event.clear()
+        logger.info(f"[{os.getenv('MY_ID')}] Esperant bloc... block_timer_event id: {id(block_timer_event)}")
         interrupted = block_timer_event.wait(timeout=interval)
 
         if interrupted:
