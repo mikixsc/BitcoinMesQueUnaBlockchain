@@ -1,9 +1,7 @@
 import os
 import logging
-from network import app, announce_block
 from digital_signature import load_or_create_keys, print_keys
 import threading
-import time
 import random
 import ledger
 
@@ -41,4 +39,5 @@ if __name__ == "__main__":
     # Arrenca el servidor
     logger.info(f"🚀 Arrencant node al port {PORT}")
     threading.Thread(target=start_block_timer, daemon=True).start()
+    from network import app
     app.run(host="0.0.0.0", port=PORT)

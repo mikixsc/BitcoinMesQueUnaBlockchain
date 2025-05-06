@@ -4,7 +4,6 @@ import os
 import digital_signature
 import utils
 from datetime import datetime
-import hashlib
 from network import announce_block, send_getdata
 from init_data import build_utxos
 
@@ -126,7 +125,7 @@ def create_block():
     add_block(block)
     announce_block(get_prev_hash())
 
-    logger.info(f"Bloc creat amb hash {block["hash"]} i {len(transactions)} transaccions.")
+    logger.info(f"Bloc creat amb hash {block['hash']} i {len(transactions)} transaccions.")
 
 
 def validate_block(block):
@@ -152,6 +151,7 @@ def validate_block(block):
 
 
 def add_block(block):
+    global temp_balances
     # Guardar-lo al ledger
     ledger = load_ledger()
     ledger.append(block)
@@ -186,6 +186,7 @@ def substract_tx(tx):
 
 
 def balances_in(hash):
+    global temp_balances
     temp_balances = load_balances()
     block_hash = get_prev_hash()
     while(block_hash!=hash):
@@ -196,6 +197,7 @@ def balances_in(hash):
         
 
 def reconstruct(initial_hash):
+    global temp_balances
     # He de mirar si tots els blocs que estan a blocks_to_validate son valids
     # Si ho son crear la blockchain amb tots aquests blocs afegits despres del inital hash
     # Si no deixar-ho com esta
@@ -256,7 +258,7 @@ def process_block(sender, block):
 
         # Es un bloc més alt, pero no es el seguent
         blocks_to_validate.insert(0, block)
-        if(index==0 and prev==GENESIS_BLOCK_PREV_HASH):
+        if(index==1 and prev==GENESIS_BLOCK_PREV_HASH):
             reconstruct(GENESIS_BLOCK_PREV_HASH)
         send_getdata(sender, "block", prev)
 
