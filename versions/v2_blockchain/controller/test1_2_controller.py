@@ -16,3 +16,11 @@ send_version("A", "C", 0)
 send_version("B", "C", 0)
 
 # B i C connectats
+
+create_transaction("A", "A", "B", 5)
+time.sleep(2)
+create_transaction("A", "A", "C", 5)
+time.sleep(2)
+create_transaction("C", "C", "B", 5)
+time.sleep(2)
+create_transaction("A", "A", "B", 5)
