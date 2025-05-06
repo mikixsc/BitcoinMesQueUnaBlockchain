@@ -247,7 +247,7 @@ def block():
 
 def announce_block(hash):
     for node_address in known_nodes:
-        send_inventory(node_address, "block")
+        send_inventory(node_address, "block", hash)
 
 def send_inventory(destination, type, hash):
     payload = {

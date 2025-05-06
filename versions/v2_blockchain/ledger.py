@@ -124,6 +124,7 @@ def create_block():
     block["hash"] = utils.hash_block(block)
 
     add_block(block)
+    announce_block(get_prev_hash())
 
     logger.info(f"Bloc creat amb hash {block["hash"]} i {len(transactions)} transaccions.")
 
@@ -162,6 +163,14 @@ def add_block(block):
     # Actualitzar els saldos definitius
     save_balances(temp_balances)
     temp_balances = load_balances()
+
+    try:
+        from app import block_timer_event
+        block_timer_event.set()
+    except ImportError:
+        pass
+
+
 
 def reconstructing_blockchain():
     return len(blocks_to_validate)>0
@@ -207,6 +216,7 @@ def reconstruct(initial_hash):
 
     for block in blocks_to_validate:
         add_block(block)
+        announce_block(get_prev_hash())
 
     blocks_to_validate.clear()
 
@@ -229,6 +239,7 @@ def process_block(sender, block):
                 return
             if(validate_block(block)):
                 add_block(block)
+                announce_block(get_prev_hash())
     
     # bloc amb index més petit o igual 
     elif(not reconstructing_blockchain() and index <= get_last_index()):
@@ -287,10 +298,6 @@ def process_transaction(tx, addToMempool, lookInMempool):
         transactions = load_mempool()
         transactions.append(tx)
         save_mempool(transactions)
-
-        if(len(transactions) >= MAX_MEMPOOL):
-            create_block()
-            announce_block(get_prev_hash())
 
     return True
 
