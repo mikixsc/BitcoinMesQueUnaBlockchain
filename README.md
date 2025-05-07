@@ -320,4 +320,4 @@ Per executar es pot fer de la següent forma:
 > Recorda que cada cop que s'executi el test, el `ledger` i `utxos` canvia, i per tant, si es torna a aplicar un tests, els resultats poden ser no esperats.
 
 > [!WARNING]
-> Per reiniciar el joc de proves, cal tornar a reiniciar primer fent `docker-compose up --build` i `python init_data.py`
+> Per reiniciar el joc de proves, cal tornar a reiniciar primer fent `python init_data.py` i després `docker-compose up --build`
