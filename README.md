@@ -168,17 +168,17 @@ Verificar
 
 ### Format de la transacció
 
-Hem afegit 2 camps al format de la transacció que ens permetran veure si és una transacció legitima creada pel propietari. I el sender i el receiver ara es una public key. Sempre el sender i la signature haurien de ser el mateix.
+Hem afegit 2 camps al format de la transacció que ens permetran veure si és una transacció legitima creada pel propietari. I el sender i el receiver ara es una public key. Sempre el sender i la public_key haurien de ser el mateix.
 
 ```json
 {
   "index": 1,
   "timestamp": "2025-04-14T10:00:00Z",
   "sender": "MEUCIQDg23....xYz",
-  "receiver": "MEUCIQDg23....xYz",
+  "receiver": "04bfc9...",
   "amount": 10,
-  "signature": "MEUCIQDg23....xYz",
-  "public_key": "04bfc9..."
+  "signature": "32bfc9...",
+  "public_key": "MEUCIQDg23....xYz"
 }
 ```
 
