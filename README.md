@@ -272,6 +272,10 @@ Cal tenir instal·lades les llibreries a la variable d'ambient de python, es pot
 
 - `pip install datetime`
 
+- `pip install flask`
+
+- `pip install ecsda`
+
 - `pip install requests`
 
 ### Escollir versió
