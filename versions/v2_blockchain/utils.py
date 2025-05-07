@@ -34,7 +34,6 @@ def create_malicious_transaction(proto_tx, signature, public_key):
 def get_proto_transaction(tx):
     """Recupera la transacció provisional a partir d'una transacció signada."""
     proto_tx = {
-        "index": tx["index"],
         "timestamp": tx["timestamp"],
         "sender": tx["sender"],
         "receiver": tx["receiver"],
