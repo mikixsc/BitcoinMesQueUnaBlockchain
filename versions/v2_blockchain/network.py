@@ -242,6 +242,10 @@ def announce_block(hash):
     for node_address in known_nodes:
         send_inventory(node_address, "block", hash)
 
+def announce_tx(txid):
+    for node_address in known_nodes:
+        send_inventory(node_address, "tx", txid)
+
 def send_inventory(destination, type, hash):
     payload = {
         "type": type,

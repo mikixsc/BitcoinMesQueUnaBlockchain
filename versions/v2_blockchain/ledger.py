@@ -4,7 +4,7 @@ import os
 import digital_signature
 import utils
 from datetime import datetime
-from network import announce_block, send_getdata
+from network import announce_block, announce_tx, send_getdata
 from init_data import build_utxos
 
 LEDGER_FILE = "data/ledger.json"
@@ -128,7 +128,7 @@ def create_block():
     logger.info(f"Bloc creat amb hash {block['hash']} i {len(transactions)} transaccions.")
 
 
-def validate_block(block):
+def validate_block(block, validate_index):
     global temp_balances
     # Aqui ja prev_hash es l'ultim bloc que tinc anterior
 
@@ -139,7 +139,12 @@ def validate_block(block):
     if received_hash != calculated_hash:
         logger.error("Hash del bloc no coincideix")
         return False
+    
 
+    # Validar l'index
+    if validate_index and block["index"] != get_last_index() + 1:
+        logger.error("Index incorrecte pel bloc")
+        return False
 
     # Fer un recorregut per les transaccions i cridant a process_transaction
     # # Només he de reutilizar si no estic reconstruint, per tant he de tenir en compte les que tinc fetes si blocs_to_validate es buit, si no no.
@@ -212,7 +217,7 @@ def reconstruct(initial_hash):
 
     
     for block in blocks_to_validate:
-        if(not validate_block(block)):
+        if(not validate_block(block, False)):
             temp_balances = load_balances()
             blocks_to_validate.clear()
             return
@@ -240,7 +245,7 @@ def process_block(sender, block):
             if index != get_last_index() + 1:
                 logger.warning("Index incorrecte pel bloc consecutiu")
                 return
-            if(validate_block(block)):
+            if(validate_block(block, True)):
                 add_block(block)
                 announce_block(get_prev_hash())
     
@@ -301,6 +306,7 @@ def process_transaction(tx, addToMempool, lookInMempool):
         transactions = load_mempool()
         transactions.append(tx)
         save_mempool(transactions)
+        announce_tx(tx["txid"])
 
     return True
 

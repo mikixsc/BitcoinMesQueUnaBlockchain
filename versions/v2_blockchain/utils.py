@@ -10,7 +10,6 @@ from digital_signature import load_or_create_keys, print_keys
 
 def create_proto_transaction(sender, receiver, amount):
     return {
-        "index": ledger.get_last_index() + 1,
         "timestamp": datetime.utcnow().isoformat() + "Z",
         "sender": sender,
         "receiver": receiver,
