@@ -46,17 +46,8 @@ def get_ledger():
 @app.route('/create_transaction', methods=['POST'])
 def create_transaction():
     data = request.get_json()
-    
-    proto_tx = utils.create_proto_transaction(data.get("sender"), data.get("receiver"), data.get("amount"))
-    proto_tx_str = json.dumps(proto_tx, sort_keys=True)
-    proto_tx_hash = digital_signature.hash_message(proto_tx_str)
 
-    signature = digital_signature.sign_message(proto_tx_hash)
-
-    tx = utils.create_transaction(proto_tx, signature)
-
-    canonical = json.dumps(tx, sort_keys=True, separators=(',', ':')).encode()
-    tx["txid"] = hashlib.sha256(canonical).hexdigest()
+    tx = utils.create_new_transaction(data.get("sender"), data.get("receiver"), data.get("amount"))
 
     if not ledger.process_transaction(tx, True, True):
         return jsonify({"error": "Transaction failed"}), 400
@@ -290,3 +281,7 @@ def send_block(destination, block):
         requests.post(f"{destination}/block", json=payload)
     except requests.exceptions.RequestException as e:
         logger.error(f"[{MY_ID}] Error sending block: {e}")
+
+def coinbase_transaction():
+    _, PUBLIC_KEY = digital_signature.load_or_create_keys()
+    return utils.create_new_transaction(None, PUBLIC_KEY, 5)

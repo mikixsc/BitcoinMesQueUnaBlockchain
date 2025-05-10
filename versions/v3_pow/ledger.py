@@ -4,8 +4,10 @@ import os
 import digital_signature
 import utils
 from datetime import datetime
-from network import announce_block, announce_tx, send_getdata
+from network import announce_block, announce_tx, send_getdata, coinbase_transaction
 from init_data import build_utxos
+
+from difficulty import should_adjust_difficulty, adjust_difficulty, get_current_target
 
 LEDGER_FILE = "data/ledger.json"
 UTXO_FILE = "data/utxos.json"
@@ -109,6 +111,28 @@ def get_prev_hash():
         return GENESIS_BLOCK_PREV_HASH  # Genesis block case
     return ledger[-1]["hash"]
 
+def try_block(nounce):
+    transactions = load_mempool()
+    
+    coinbase = coinbase_transaction()
+
+    transactions.append(coinbase)
+
+    block = {
+        "index": get_last_index()+1,
+        "timestamp": datetime.utcnow().isoformat() + "Z",
+        "prev_hash": get_prev_hash(),
+        "transactions": transactions,
+        "nounce": nounce
+    }
+    # fer el hash del bloc
+    block["hash"] = utils.hash_block(block)
+
+    if block["hash"] < get_current_target():
+        add_block(block)
+        announce_block(get_prev_hash())
+        logger.info(f"Bloc creat amb hash {block['hash']} i {len(transactions)} transaccions.")
+
 
 def create_block():
     transactions = load_mempool()
@@ -131,10 +155,15 @@ def create_block():
 def validate_block(block, validate_index):
     global temp_balances
     # Aqui ja prev_hash es l'ultim bloc que tinc anterior
-
-    #Mirar que el hash sigui el correcte
     block_copy = block.copy()
     received_hash = block_copy.pop("hash")
+
+    # Mirar que el hash estigui per sota de l'objectiu
+    if(received_hash > get_current_target()):
+        logger.error("Hash del bloc no es vàlid es més gran que l'objectiu")
+        return False
+
+    #Mirar que el hash sigui el correcte
     calculated_hash = utils.hash_block(block_copy)
     if received_hash != calculated_hash:
         logger.error("Hash del bloc no coincideix")
@@ -150,11 +179,19 @@ def validate_block(block, validate_index):
     # # Només he de reutilizar si no estic reconstruint, per tant he de tenir en compte les que tinc fetes si blocs_to_validate es buit, si no no.
     
     # Restart balances
+    # # Mirar que en el bloc només hi hagi com a maxim una transaccio coinbase
     temp_balances = load_balances()
+    coinbase_count = 0
     for tx in block["transactions"]:
-        if not process_transaction(tx, False, False):
+        valida, coinbase = process_transaction(tx, False, False)
+        if not valida:
             logger.error("Transacció invàlida en el bloc")
             return False
+        if coinbase:
+            coinbase_count += 1
+            if coinbase_count > 1:
+                logger.error("Més d'una transacció coinbase en el bloc")
+                return False
     return True
 
 
@@ -166,9 +203,6 @@ def add_block(block):
     ledger.append(block)
     save_ledger(ledger)
 
-    # Netejar la mempool
-    save_mempool([])
-
     # Actualitzar els saldos definitius
     save_balances(temp_balances)
     temp_balances = load_balances()
@@ -176,6 +210,12 @@ def add_block(block):
     from shared import block_timer_event
     block_timer_event.set()
 
+    if should_adjust_difficulty(ledger):
+        adjust_difficulty(ledger)
+
+    # Netejar la mempool
+    save_mempool([])
+    
 
 
 def reconstructing_blockchain():
@@ -207,7 +247,6 @@ def reconstruct(initial_hash):
     # He de mirar si tots els blocs que estan a blocks_to_validate son valids
     # Si ho son crear la blockchain amb tots aquests blocs afegits despres del inital hash
     # Si no deixar-ho com esta
-    save_mempool([])
     # fer que temp_balances es possi en l'estat en el que estavem en el bloc inital_hash
     if(initial_hash==GENESIS_BLOCK_PREV_HASH):
         # Obtenir l'init # Quan es fagui pow inicialitzar a per defecte
@@ -273,32 +312,41 @@ def process_transaction(tx, addToMempool, lookInMempool):
     receiver = tx["receiver"]
     amount = tx["amount"]
     pk = tx["public_key"]
+    coinbase = False
+    # Mirar si el sender es null -> tx coinbase
 
-    if(pk != sender):
+    
+    if sender == None:
+        coinbase = True
+
+    if(not coinbase and pk != sender):
         logger.error(f"\n\nTransacció FALLIDA: la clau pública no coincideix amb el sender ({pk} != {sender})")
-        return False
+        return False, coinbase
 
     # Agafar el saldo temporal
-    balance = temp_balances.get(sender, 0)
-    # Verificar que el sender existeix i té saldo suficient
-    if balance < amount:
-        logger.error(f"\n\nTransacció FALLIDA: saldo insuficient per {sender} (saldo: {balance}, amount: {amount})")
-        return False
+    if not coinbase:
+        balance = temp_balances.get(sender, 0)
+        # Verificar que el sender existeix i té saldo suficient
+        if balance < amount:
+            logger.error(f"\n\nTransacció FALLIDA: saldo insuficient per {sender} (saldo: {balance}, amount: {amount})")
+            return False, coinbase
     
     if(lookInMempool and already_have_it("tx", tx["txid"])):
         logger.info(f"\n\nTransacció: ja la tenia")
-        return True
+        return True, coinbase
 
     # Mirar que l'hagi fet el propietari de la clau privada
-    proto_tx = utils.get_proto_transaction(tx)
-    proto_tx_str = json.dumps(proto_tx, sort_keys=True)
-    message_hash = digital_signature.hash_message(proto_tx_str)
-    if(not digital_signature.verify_signature(pk, tx["signature"], message_hash)):
-        logger.error(f"\n\nTransacció FALLIDA: la firma no es vàlida")
-        return False
+    if not coinbase:
+        proto_tx = utils.get_proto_transaction(tx)
+        proto_tx_str = json.dumps(proto_tx, sort_keys=True)
+        message_hash = digital_signature.hash_message(proto_tx_str)
+        if(not coinbase and not digital_signature.verify_signature(pk, tx["signature"], message_hash)):
+            logger.error(f"\n\nTransacció FALLIDA: la firma no es vàlida")
+            return False, coinbase
 
     # Actualitzar els saldos temporals
-    temp_balances[sender] = balance - amount
+    if not coinbase:
+        temp_balances[sender] = balance - amount
     temp_balances[receiver] = temp_balances.get(receiver, 0) + amount
 
     # Posar-ho a la mempool
@@ -308,7 +356,7 @@ def process_transaction(tx, addToMempool, lookInMempool):
         save_mempool(transactions)
         announce_tx(tx["txid"])
 
-    return True
+    return True, coinbase
 
 def get_last_index():
     blockchain = load_ledger()

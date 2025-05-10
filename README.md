@@ -172,13 +172,23 @@ Hem afegit 2 camps al format de la transacció que ens permetran veure si és un
 
 ```json
 {
-  "index": 1,
+  "txid": 1,
   "timestamp": "2025-04-14T10:00:00Z",
   "sender": "MEUCIQDg23....xYz",
   "receiver": "04bfc9...",
   "amount": 10,
   "signature": "32bfc9...",
   "public_key": "MEUCIQDg23....xYz"
+}
+```
+
+```json
+{
+  "txid": 1,
+  "timestamp": "2025-04-14T10:00:00Z",
+  "sender": null,
+  "receiver": "04bfc9...",
+  "amount": 10,
 }
 ```
 
