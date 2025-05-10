@@ -49,7 +49,8 @@ def create_transaction():
 
     tx = utils.create_new_transaction(data.get("sender"), data.get("receiver"), data.get("amount"))
 
-    if not ledger.process_transaction(tx, True, True):
+    valida, _ = ledger.process_transaction(tx, True, True)
+    if not valida:
         return jsonify({"error": "Transaction failed"}), 400
     
     # Transacció vàlida -> anunciem-la
@@ -74,7 +75,8 @@ def create_malicious_transaction():
 
     tx = utils.create_malicious_transaction(proto_tx, signature, data.get("public_key"))
 
-    if not ledger.process_transaction(tx):
+    valida, _ = ledger.process_transaction(tx, True, True)
+    if not valida:
         return jsonify({"error": "Transaction failed"}), 400
     
     # Transacció vàlida -> anunciem-la
@@ -284,4 +286,4 @@ def send_block(destination, block):
 
 def coinbase_transaction():
     _, PUBLIC_KEY = digital_signature.load_or_create_keys()
-    return utils.create_new_transaction(None, PUBLIC_KEY, 5)
+    return utils.create_new_transaction(None, digital_signature.print_keys(PUBLIC_KEY), 5)

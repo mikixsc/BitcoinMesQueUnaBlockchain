@@ -10,7 +10,7 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-INITIAL_TARGET = 0x00000fffffffffffffffffffffffffffffffffffffffffffffffffffffffffff  # nivell inicial
+INITIAL_TARGET = 0x000fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff  # nivell inicial
 
 
 current_target = INITIAL_TARGET
@@ -38,8 +38,9 @@ def adjust_difficulty(blockchain):
 
     actual_time = end_time - start_time
     expected_time = TARGET_BLOCK_TIME * DIFFICULTY_ADJUSTMENT_INTERVAL
-
+    
     ratio = actual_time / expected_time
+    ratio = max(0.25, min(4.0, ratio))
 
     new_target = int(current_target * ratio)
     current_target = new_target

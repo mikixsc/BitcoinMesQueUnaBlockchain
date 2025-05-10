@@ -74,20 +74,9 @@ def save_balances(balances):
     with open(UTXO_FILE, "w") as f:
         json.dump(balances, f, indent=2)
 
-
-def update_balance(utxo, new_balance):
-    balances = load_balances()
-    balances[utxo] = new_balance
-    save_balances(balances)
-
 def get_balance(utxo):
     balances = load_balances()
     return balances.get(utxo, 0)
-
-def update_balance(utxo, new_balance):
-    balances = load_balances()
-    balances[utxo] = new_balance
-    save_balances(balances)
 
 def get_transaction(txid):
     mempool = load_mempool()
@@ -111,7 +100,7 @@ def get_prev_hash():
         return GENESIS_BLOCK_PREV_HASH  # Genesis block case
     return ledger[-1]["hash"]
 
-def try_block(nounce):
+def try_block(nonce):
     transactions = load_mempool()
     
     coinbase = coinbase_transaction()
@@ -123,15 +112,16 @@ def try_block(nounce):
         "timestamp": datetime.utcnow().isoformat() + "Z",
         "prev_hash": get_prev_hash(),
         "transactions": transactions,
-        "nounce": nounce
+        "nonce": nonce
     }
     # fer el hash del bloc
     block["hash"] = utils.hash_block(block)
 
-    if block["hash"] < get_current_target():
+    if int(block["hash"], 16) < get_current_target():
         add_block(block)
         announce_block(get_prev_hash())
-        logger.info(f"Bloc creat amb hash {block['hash']} i {len(transactions)} transaccions.")
+        logger.info(f"Bloc creat amb hash {block['hash']} ({int(block['hash'], 16)}) vs target ({get_current_target()})")
+
 
 
 def create_block():
@@ -159,7 +149,7 @@ def validate_block(block, validate_index):
     received_hash = block_copy.pop("hash")
 
     # Mirar que el hash estigui per sota de l'objectiu
-    if(received_hash > get_current_target()):
+    if(int(received_hash, 16) > get_current_target()):
         logger.error("Hash del bloc no es vàlid es més gran que l'objectiu")
         return False
 
@@ -206,9 +196,6 @@ def add_block(block):
     # Actualitzar els saldos definitius
     save_balances(temp_balances)
     temp_balances = load_balances()
-    
-    from shared import block_timer_event
-    block_timer_event.set()
 
     if should_adjust_difficulty(ledger):
         adjust_difficulty(ledger)
@@ -347,6 +334,7 @@ def process_transaction(tx, addToMempool, lookInMempool):
     # Actualitzar els saldos temporals
     if not coinbase:
         temp_balances[sender] = balance - amount
+        
     temp_balances[receiver] = temp_balances.get(receiver, 0) + amount
 
     # Posar-ho a la mempool
