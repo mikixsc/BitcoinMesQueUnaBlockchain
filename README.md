@@ -1,10 +1,10 @@
 # BitcoinMesQueUnaBlockchain
 
 ## Introducció
+
 Avui en dia la majoria dels diners són digitals, la funció més funamental d’un banc és mantenir i gestionar la base de dades dels comptes bancaris. Sobretot s’ha d’assegurar que una persona no pugui utilitzar diners que ja s’ha gastat. Això per ells es relativament fàcil ja que són els unics que tenen capacitat de modificar el llibre de comptabilitat.
 
 ![Sistema centralitzat](https://github.com/user-attachments/assets/11564406-6ecc-4e29-85a2-ab832fb972ca)
-
 
 Aquest sistema té certs inconvenients, com la subjecció a les seves normes, la possiblitat de censura, el potencial control i és vulnerable.
 
@@ -17,6 +17,7 @@ A continuació mirarem de distribuir aquest llibre de comptabilitat desde cero.
 Ara cada persona/node gestionarà el llibre de comptabilitat. Ara quan una persona vulgui gastar diners, ho comunicaran als altres, i els altres s'asseguraran que és una transacció vàlida.
 
 ### Format del llibre de comptabilitat
+
 El llibre de comptabilitat serà un fitxer json on cada entrada sera una transacció. El format inicial d'una transacció serà aquesta:
 
 ```json
@@ -35,7 +36,7 @@ El llibre de comptabilitat serà un fitxer json on cada entrada sera una transac
 - receiver: Persona que rep.
 - amount: Quantitat que envia.
 
-Per tant el llibre de comptabilitat amb 3 transaccions tindra aquest format: 
+Per tant el llibre de comptabilitat amb 3 transaccions tindra aquest format:
 
 ```json
 [
@@ -68,7 +69,9 @@ Per tant el llibre de comptabilitat amb 3 transaccions tindra aquest format:
 La comunicació mirarem de fer-la a través de una API sobre HTTP.
 
 #### POST /version
+
 Un node informa que es vol connectar.
+
 ```json
 {
   "node_id": "A",
@@ -76,9 +79,13 @@ Un node informa que es vol connectar.
   "known_height": 3,
   "node_address": "http://localhost:5001"
 }
+
 ```
+
 #### POST /verack
+
 Resposta al version. Simplement acceptem la connexió
+
 ```json
 {
   "node_id": "A",
@@ -87,7 +94,9 @@ Resposta al version. Simplement acceptem la connexió
 ```
 
 #### GET /addr
+
 Demanar les adreces d'altres nodes
+
 ```json
 {
   "node_id": "A",
@@ -96,7 +105,9 @@ Demanar les adreces d'altres nodes
 ```
 
 #### POST /addr
+
 Reposta amb la llista d'adreces conegudes:
+
 ```json
 {
   "nodes": ["http://localhost:5001", "http://localhost:5002"]
@@ -104,6 +115,7 @@ Reposta amb la llista d'adreces conegudes:
 ```
 
 #### POST /inventory
+
 Té noves transacció
 
 ```json
@@ -115,7 +127,9 @@ Té noves transacció
 ```
 
 #### POST /getdata
+
 El node demana les dades reals corresponents a un inventory.
+
 ```json
 {
   "indexes": [3, 4, 5],
@@ -125,7 +139,9 @@ El node demana les dades reals corresponents a un inventory.
 ```
 
 #### POST /transactions
+
 Resposta amb la transaccins
+
 ```json
 [
   {
@@ -140,13 +156,14 @@ Resposta amb la transaccins
 
 ### Situació
 
-D'aquesta forma ja tenim distribuit el llibre de comptabilitat. Però encara ens falta solucionar varies problematiques per tal de que sigui un sistema segur, veridic, confiable... 
+D'aquesta forma ja tenim distribuit el llibre de comptabilitat. Però encara ens falta solucionar varies problematiques per tal de que sigui un sistema segur, veridic, confiable...
 
-Per exemple en aquesta versio més simple de xarxa distribuida que hem creat com podem saber que realment les transaccions que es fan venen realitzades per el propietari d'aquelles monedes? 
+Per exemple en aquesta versio més simple de xarxa distribuida que hem creat com podem saber que realment les transaccions que es fan venen realitzades per el propietari d'aquelles monedes?
 
 En la següent versio anirem a solucionar aquest problema amb criptorgrafia!
 
 ## Digital Signature
+
 Ara farem servir criptografia asimètrica per garantir que només el propietari d’uns fons pot autoritzar-ne la transferència.
 
 Claus
@@ -164,6 +181,7 @@ Signar un missatge
 - La signatura i la clau pública s’afegeixen a la transacció.
 
 Verificar
+
 - Qualsevol node pot comprovar la signatura amb el mateix hash i la clau pública. Si la validació falla, la transacció és rebutjada.
 
 ### Format de la transacció
@@ -193,6 +211,7 @@ Hem afegit 2 camps al format de la transacció que ens permetran veure si és un
 ```
 
 ## Blockchain
+
 Fins ara guardàvem totes les transaccions en un únic fitxer ledger.json. A partir d'ara evolucionem cap a una cadena de blocs, cada bloc agrupa un subconjunt de transaccions i enllaça amb l’anterior mitjançant un hash.
 
 ### Estructura d'un bloc
@@ -219,6 +238,7 @@ Fins ara guardàvem totes les transaccions en un únic fitxer ledger.json. A par
 Per tant ara el llibre de comptabilitat serà una llista de blocs encadenats, en comptes de una llista de transaccions.
 
 #### POST /inventory
+
 Té noves transacció
 
 ```json
@@ -231,7 +251,9 @@ Té noves transacció
 ```
 
 #### POST /getdata
+
 El node demana les dades reals corresponents a un inventory.
+
 ```json
 {
   "type": "tx",
@@ -240,3 +262,76 @@ El node demana les dades reals corresponents a un inventory.
   "node_id": "A",
 }
 ```
+
+## Com provar el codi
+
+### Instal·lació prèvia
+
+#### Docker
+
+Per fer-ho cal tenir instal·lat **Docker desktop**, ja que instal·larà les depèndecies necessàries.
+
+> [!NOTE]
+> Cal tenir oberta l'aplicació per seguir endavant amb la prova
+
+#### Python
+
+Cal tenir instal·lades les llibreries a la variable d'ambient de python, es pot fer de la següent manera:
+
+- `python.exe -m pip install --upgrade pip` (Actualitza l'instal·lador de paquets, si no ho està)
+
+- `pip install datetime`
+
+- `pip install flask`
+
+- `pip install ecsda`
+
+- `pip install requests`
+
+### Escollir versió
+
+Cal dirigir-se a un dels directoris depenent de la versió que es vulgui provar.
+
+Cal executar la comanda per mouren's al directori, per exemple:
+> `cd {camí del directori on es troba el codi baixat}/BitcoinMesQueUnaBlockchain`
+> `cd /versions/v0_p2p`
+
+### Aixecar contenidors
+
+Per aixecar els contenidors i així crear de manera "artificial" aquests node, ho fem a partir del fitxer `docker-compose.yml`
+
+Cal executar la següent comanda en una terminal que estigui en el directori de la versió.
+
+> `docker-compose up --build`
+
+Un cop executada, per configurar i veure els missatges de l'execucio per cada node, cal obrir 3 terminals en el mateix direcori i executar per cada terminal el següent:
+
+> `docker logs -f "v0_p2p-node1-1"`
+
+![Exemple docker build execution](image.png)
+
+A cada terminal, s'ha d'executar la comanda anterior amb el corresponent nom de cada contenidor, en aquest cas, com es pot veure a l'imatge, seria "v0-p2p-node1-1", "v0-p2p-node2-1" i "v0-p2p-node3-1"
+
+### Iniciar les dades
+
+Per començar des de un punt inicial, tenim el fitxer `init_data.py` a cada versió, on crea un ledger i un utxos per cada node, estant buit i 10 monedes cada un, respectivament.
+
+Per executar aquest fitxer, es tan fàcil, com:
+> `python .\init_data.py`
+
+> [!NOTE]
+> Cal estar en el mateix directori de la versió escollida
+
+### Executar testos
+
+Aquests testos, permet provar les desavantatges i avantatges de cada versió i destacar-les per les següents.
+Cal dirigir-se al directori `/tests`, i allà executar el tests desitjat.
+
+Per executar es pot fer de la següent forma:
+> python .\test1_controller.py
+
+> [!NOTE]
+> Recorda que cada cop que s'executi el test, el `ledger` i `utxos` canvia, i per tant, si es torna a aplicar un tests, els resultats poden ser no esperats.
+
+> [!WARNING]
+> Per reiniciar el joc de proves, cal tornar a reiniciar primer fent `python init_data.py` i després `docker-compose up --build`

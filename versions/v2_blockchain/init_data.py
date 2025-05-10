@@ -52,7 +52,5 @@ def main():
     for node in NODES:
         create_node_data(node)
 
-    print("\nTot preparat! Ara pots fer 'docker-compose up --build'.")
-
 if __name__ == "__main__":
     main()
