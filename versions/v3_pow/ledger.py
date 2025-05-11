@@ -118,6 +118,11 @@ def try_block(nonce):
     block["hash"] = utils.hash_block(block)
 
     if int(block["hash"], 16) < get_current_target():
+        receiver = coinbase["receiver"]
+        amount = coinbase["amount"]
+        before = temp_balances.get(receiver, 0)
+        temp_balances[receiver] = before + amount
+        
         add_block(block)
         announce_block(get_prev_hash())
         logger.info(f"Bloc creat amb hash {block['hash']} ({int(block['hash'], 16)}) vs target ({get_current_target()})")
