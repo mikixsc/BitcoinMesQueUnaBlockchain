@@ -56,3 +56,11 @@ def create_malicious_transaction(initial_node, sender, receiver, amount):
         print(f"Resposta de /create_transaction: {response.json()}")
     except Exception as e:
         print(f"Error enviant /create_transaction: {e}")
+
+
+def remove_history(node):
+    try:
+        response = requests.delete(f"{nodes_outside[node]}/remove_history")
+        print(f"Resposta de /remove_history: {response.json()}")
+    except Exception as e:
+        print(f"Error enviant /remove_history: {e}")

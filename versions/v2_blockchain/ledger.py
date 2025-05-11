@@ -72,20 +72,9 @@ def save_balances(balances):
     with open(UTXO_FILE, "w") as f:
         json.dump(balances, f, indent=2)
 
-
-def update_balance(utxo, new_balance):
-    balances = load_balances()
-    balances[utxo] = new_balance
-    save_balances(balances)
-
 def get_balance(utxo):
     balances = load_balances()
     return balances.get(utxo, 0)
-
-def update_balance(utxo, new_balance):
-    balances = load_balances()
-    balances[utxo] = new_balance
-    save_balances(balances)
 
 def get_transaction(txid):
     mempool = load_mempool()
@@ -122,13 +111,13 @@ def create_block():
     # fer el hash del bloc
     block["hash"] = utils.hash_block(block)
 
-    add_block(block)
+    add_block_and_restart(block)
     announce_block(get_prev_hash())
 
     logger.info(f"Bloc creat amb hash {block['hash']} i {len(transactions)} transaccions.")
 
 
-def validate_block(block, validate_index):
+def validate_block(block, validate_index, restart_temp_balances):
     global temp_balances
     # Aqui ja prev_hash es l'ultim bloc que tinc anterior
 
@@ -150,7 +139,8 @@ def validate_block(block, validate_index):
     # # Només he de reutilizar si no estic reconstruint, per tant he de tenir en compte les que tinc fetes si blocs_to_validate es buit, si no no.
     
     # Restart balances
-    temp_balances = load_balances()
+    if restart_temp_balances:
+        temp_balances = load_balances()
     for tx in block["transactions"]:
         if not process_transaction(tx, False, False):
             logger.error("Transacció invàlida en el bloc")
@@ -160,11 +150,15 @@ def validate_block(block, validate_index):
 
 
 def add_block(block):
-    global temp_balances
-    # Guardar-lo al ledger
     ledger = load_ledger()
     ledger.append(block)
     save_ledger(ledger)
+
+
+def add_block_and_restart(block):
+    global temp_balances
+
+    add_block(block)
 
     # Netejar la mempool
     save_mempool([])
@@ -200,7 +194,11 @@ def balances_in(hash):
         for tx in block["transactions"]:
             substract_tx(tx)
         block_hash = block["prev_hash"]
-        
+
+def restart_utxos():
+    existing_utxos = load_balances()
+    new_balances = {k: 10 for k in existing_utxos.keys()}
+    save_balances(new_balances)
 
 def reconstruct(initial_hash):
     global temp_balances
@@ -208,24 +206,24 @@ def reconstruct(initial_hash):
     # Si ho son crear la blockchain amb tots aquests blocs afegits despres del inital hash
     # Si no deixar-ho com esta
     save_mempool([])
-    # fer que temp_balances es possi en l'estat en el que estavem en el bloc inital_hash
-    if(initial_hash==GENESIS_BLOCK_PREV_HASH):
-        # Obtenir l'init # Quan es fagui pow inicialitzar a per defecte
-        temp_balances = build_utxos()
-    else: 
-        temp_balances = balances_in(initial_hash)
+    existing_utxos = load_balances()
+    temp_balances = {k: 10 for k in existing_utxos.keys()}
 
     
     for block in blocks_to_validate:
-        if(not validate_block(block, False)):
+        if(not validate_block(block, False, False)):
             temp_balances = load_balances()
             blocks_to_validate.clear()
             return
-
+        
+    
+    save_ledger([])
+    save_balances(temp_balances)
     for block in blocks_to_validate:
         add_block(block)
-        announce_block(get_prev_hash())
 
+    announce_block(get_prev_hash())
+    
     blocks_to_validate.clear()
 
 
@@ -237,34 +235,30 @@ def process_block(sender, block):
     
 
     # Es el seguent bloc 
-    if(get_prev_hash() == prev):
-        if(reconstructing_blockchain()):
-            blocks_to_validate.append(block)
-            reconstruct(prev)
-        else:
+    if(not reconstructing_blockchain()):
+        if(already_have_it("block", hash)):
+            logger.info(f"Ja tinc el bloc")
+            return
+        elif(get_prev_hash() == prev):
             if index != get_last_index() + 1:
                 logger.warning("Index incorrecte pel bloc consecutiu")
                 return
-            if(validate_block(block, True)):
-                add_block(block)
+            if(validate_block(block, True, True)):
+                add_block_and_restart(block)
                 announce_block(get_prev_hash())
-    
-    # bloc amb index més petit o igual 
-    elif(not reconstructing_blockchain() and index <= get_last_index()):
-        logger.info(f"Es un bloc anterior")
-        return
+        elif(index <= get_last_index()):
+            logger.info(f"Es un bloc anterior")
+            return
+        else:
+            blocks_to_validate.insert(0, block)
+            if(index==0 and prev==GENESIS_BLOCK_PREV_HASH):
+                reconstruct(GENESIS_BLOCK_PREV_HASH)
+            send_getdata(sender, "block", prev)
     
     else:
-        # Es un bloc que ja tinc
-        if(already_have_it("block", hash)):
-            logger.info(f"Ja tinc el bloc")
-            if(reconstructing_blockchain()):
-                reconstruct(hash)
-            return
-
         # Es un bloc més alt, pero no es el seguent
         blocks_to_validate.insert(0, block)
-        if(index==1 and prev==GENESIS_BLOCK_PREV_HASH):
+        if(index==0 and prev==GENESIS_BLOCK_PREV_HASH):
             reconstruct(GENESIS_BLOCK_PREV_HASH)
         send_getdata(sender, "block", prev)
 

@@ -43,6 +43,28 @@ def get_ledger():
         logger.error(f"[{MY_ID}] Error carregant el ledger: {e}")
         return jsonify({"error": "No s'ha pogut carregar el ledger."}), 500
 
+
+@app.route('/remove_history', methods=['DELETE'])
+def remove_history():
+    aux_ledger = []
+
+    prev_hash = None
+    for i in range(ledger.get_last_index()+5):
+        block = utils.empty_block(i, prev_hash)
+        aux_ledger.append(block)
+        prev_hash = block["hash"]
+
+    # change ledger and send inventory of the last block
+    ledger.save_ledger(aux_ledger)
+    ledger.save_mempool([])
+    ledger.restart_utxos()
+
+    announce_block(prev_hash)
+
+    logger.info(f"[{MY_ID}] Historial esborrat")
+
+    return jsonify({"message": "Remove history done"}), 200    
+
 @app.route('/create_transaction', methods=['POST'])
 def create_transaction():
     data = request.get_json()

@@ -53,3 +53,5 @@ for tx in transactions:
     sender_node, from_user, to_user, amount = tx
     create_transaction(sender_node, from_user, to_user, amount)
     time.sleep(10)
+
+remove_history("A")

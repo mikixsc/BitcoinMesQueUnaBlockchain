@@ -44,3 +44,18 @@ def get_proto_transaction(tx):
 def hash_block(block):
     block_serialized = json.dumps(block, sort_keys=True).encode()
     return hashlib.sha256(block_serialized).hexdigest()
+
+def empty_block(index, previous_hash):
+    """Crea un bloc buit amb l'índex especificat."""
+    if(previous_hash == None):
+        previous_hash = ledger.GENESIS_BLOCK_PREV_HASH
+    block = {
+        "index": index,
+        "timestamp": datetime.utcnow().isoformat() + "Z",
+        "prev_hash": previous_hash,
+        "transactions": []
+    }
+    # fer el hash del bloc
+    block["hash"] = hash_block(block)
+
+    return block
