@@ -190,7 +190,7 @@ Hem afegit 2 camps al format de la transacció que ens permetran veure si és un
 
 ```json
 {
-  "txid": "56aewb1...",
+  "index": "1",
   "timestamp": "2025-04-14T10:00:00Z",
   "sender": "MEUCIQDg23....xYz",
   "receiver": "04bfc9...",
