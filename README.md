@@ -200,16 +200,6 @@ Hem afegit 2 camps al format de la transacció que ens permetran veure si és un
 }
 ```
 
-```json
-{
-  "txid": 1,
-  "timestamp": "2025-04-14T10:00:00Z",
-  "sender": null,
-  "receiver": "04bfc9...",
-  "amount": 10,
-}
-```
-
 ## Blockchain
 
 Fins ara guardàvem totes les transaccions en un únic fitxer ledger.json. A partir d'ara evolucionem cap a una cadena de blocs, cada bloc agrupa un subconjunt de transaccions i enllaça amb l’anterior mitjançant un hash.
@@ -235,11 +225,9 @@ Fins ara guardàvem totes les transaccions en un únic fitxer ledger.json. A par
 }
 ```
 
-Per tant ara el llibre de comptabilitat serà una llista de blocs encadenats, en comptes de una llista de transaccions.
+Per tant ara el llibre de comptabilitat serà una llista de blocs encadenats, en comptes de una llista de transaccions. Ara els missatges /inventory i /getdata tant passaran blocs com transaccions.
 
-#### POST /inventory
-
-Té noves transacció
+/inventory
 
 ```json
 {
@@ -252,7 +240,7 @@ Té noves transacció
 
 #### POST /getdata
 
-El node demana les dades reals corresponents a un inventory.
+/getdata
 
 ```json
 {
@@ -262,6 +250,14 @@ El node demana les dades reals corresponents a un inventory.
   "node_id": "A",
 }
 ```
+
+
+
+
+## Proof of work i mineria
+
+Ara far
+
 
 ## Com provar el codi
 
