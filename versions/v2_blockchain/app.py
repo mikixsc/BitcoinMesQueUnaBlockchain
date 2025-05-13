@@ -35,7 +35,7 @@ if __name__ == "__main__":
     # Claus digitals
     PRIVATE_KEY, PUBLIC_KEY = load_or_create_keys()
     logger.info("Claus digitals carregades o creades correctament.")
-    logger.info(f"Clau pública: {print_keys(PUBLIC_KEY)[:30]}...")
+    logger.info(f"Clau pública: {print_keys(PUBLIC_KEY)}\n")
 
     # Arrenca el servidor
     logger.info(f"🚀 Arrencant node al port {PORT}")

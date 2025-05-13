@@ -308,6 +308,12 @@ Un cop executada, per configurar i veure els missatges de l'execucio per cada no
 
 A cada terminal, s'ha d'executar la comanda anterior amb el corresponent nom de cada contenidor, en aquest cas, com es pot veure a l'imatge, seria "v0-p2p-node1-1", "v0-p2p-node2-1" i "v0-p2p-node3-1"
 
+### Comprovar claus públiques
+
+Abans d'iniciar les dades, es important revisar que el contingut dels fitxers "/tests/api_helper.py", contenen les public_key de cada node correctament, ja que estan hardcoded.
+
+Per comprovar-ho, només cal mirar el log de cada node, hi allà apareix la public_key que cal copiar i modificar en el fitxer.
+
 ### Iniciar les dades
 
 Per començar des de un punt inicial, tenim el fitxer `init_data.py` a cada versió, on crea un ledger i un utxos per cada node, estant buit i 10 monedes cada un, respectivament.
